@@ -105,4 +105,4 @@ contratado e medido; quem o valida contra a etapa real é a SPEC 1.1.
 - [x] O prompt v4 declara o contrato v2, preserva as três vias de decisão de correção do v3 e monta os 45 payloads sem gastar cota (2026-09-16 15:00, commit `603d025`, verify: exit 0) | verify: `node scripts/eval/run.mjs --dry`
 - [x] O grader lê o formato v2, conta correções pelo array e as 12 checagens se comportam como especificado (2026-09-16 15:00, commit `603d025`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --self-test`
 - [x] Rodada real de 45 falas em `openai/gpt-oss-20b` sob o contrato v2, com zero falha de contrato e evidência persistida em `evidence/` (2026-09-16 16:28, commit `1bae4c0`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --assert-contract`
-- [ ] Leitura humana confirma que as correções do contrato v2 não pioraram em tato nem em sobre-correção frente ao v3 | evidence: manual @allan
+- [x] Leitura humana confirma que as correções do contrato v2 não pioraram em tato nem em sobre-correção frente ao v3 | evidence: manual @allan (2026-09-16 16:36, commit `01c70a4`)

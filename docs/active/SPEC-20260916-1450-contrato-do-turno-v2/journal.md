@@ -2,12 +2,12 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 16:30
-**Onde tô:** rodada 45/45 feita, 6 de 7 critérios estampados; falta só a leitura humana do critério 7.
-**Próximo passo:** apresentar ao @allan a sobre-correção de `hotel-07`, as 4 omissões e as 3 `explanation_pt` em inglês, para o veredito do critério 7.
-**Última decisão:** rate limit não é falha de contrato — o gate classifica por `erro.error` e reporta transitórias à parte.
-**Bloqueio atual:** critério 7 aguarda julgamento humano (R.6.2 — não é meu para marcar).
-**Se retomar, ler:** `main.md` desta SPEC e a entrada `[decisão]` de 15:01 no LOG.
+**Última atualização:** 2026-09-16 16:38
+**Onde tô:** entrega completa — 7 de 7 critérios evidenciados, rodada 45/45 com zero falha de contrato.
+**Próximo passo:** `close --dry` e, com os gates verdes, `close`.
+**Última decisão:** critério 7 aprovado pelo usuário com C13 adicionado aqui ("Aprovar e adicionar C13 aqui").
+**Bloqueio atual:** nenhum.
+**Se retomar, ler:** `main.md` desta SPEC e as entradas `[decisão]` de 15:01, `[unblock]` de 16:30 e `[conclusão]` de 16:38 no LOG.
 
 ### Fases
 | # | Descrição | Status | Atualizado |
@@ -18,36 +18,43 @@
 | 4 | `run.mjs` — prompt v4 | concluído | 2026-09-16 15:00 |
 | 5 | `grade.mjs` — C3 exato, C11, C12, `--assert-contract` | concluído | 2026-09-16 15:00 |
 | 6 | Rodada real de 45 falas no `gpt-oss-20b` | concluído | 2026-09-16 16:30 |
-| 7 | Leitura humana: tato e sobre-correção vs v3 | em progresso | 2026-09-16 16:30 |
+| 7 | Leitura humana: tato e sobre-correção vs v3 | concluído | 2026-09-16 16:36 |
+| 8 | C13 — `explanation_pt` em português, calibrado contra as 33 explicações | concluído | 2026-09-16 16:36 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
-- fato: passam com exit 0 — `validate.mjs --schema`, `--self-test` (13 casos), `--all` (45 falas/17 controles), `run.mjs --dry` (45 payloads), `grade.mjs --self-test` (15 casos, 12 checagens).
-- fato: `grade.mjs --assert-contract` sai 1 sem evidência gravada; o gate diz a verdade em vez de passar por omissão.
+- fato: 45/45 turnos no `gpt-oss-20b` sob o contrato v2, zero falha de contrato, `--assert-contract` exit 0.
+- fato: C11 (evidência literal) em 100% nas 33 correções e C4 de 88% para 94% frente ao v3 — as DUAS dúvidas anteriores resolvidas pela evidência, ambas para o lado bom.
+- fato: `corrections[]` aninhado É aceito pelo strict mode do Groq — era inferência, virou fato na rodada.
 - fato: strict mode do Groq segue o structured outputs da OpenAI e exige `required` completo sob `additionalProperties: false` — daí 9 campos obrigatórios e ausência de correção como ARRAY VAZIO.
+- fato: o teto do tier gratuito é de TOKENS/min, não de requisições — morreu em 5/45 com 995 req e 1207 tokens restantes; exigiu backoff de 20s e pausa pelo header de tokens.
 - fato: `Protótipo v2.dc.html` tem as mesmas 21 telas e o mesmo contrato de 8 campos do App Standalone — delta em tecnologia, roteiro, chave, props, persistência e velocidade de fala (`[descoberta]` 15:01).
-- inferência: `corrections[]` aninhado deve passar no strict mode — o payload monta e o schema é válido, mas só a rodada confirma; `maxItems` já foi suspeito antes e passou.
-- dúvida: taxa de reprovação em C11 na rodada real — se o modelo parafrasear em vez de copiar o trecho, o ajuste é de prompt, não de contrato.
-- dúvida: se `corrections[]` aumenta a sobre-correção por convidar a preencher itens; os 17 controles medem, mas só com a rodada.
+- fato: `bun run lint` estava vermelho repo-wide ANTES desta branch (`core.autocrlf=true` + `endOfLine: "lf"`) e não terminava (eslint varria um bundle de 3,1 MB em `.scratch/`). Resolvido em commits de harness à parte.
+- dúvida (para a SPEC 0.2): por que o modelo roteia a correção para `suggestion_en` mesmo nos casos que o prompt nomeia literalmente na via (b). É calibração de prompt, não de contrato.
 
 ### Respostas-chave do usuário
-- "Implemente usando a sua recomendação. Verifique novamente" (2026-09-16 14:47) — aprova o planejamento de 16 seções e as 12 recomendações, e pede reverificação do protótipo.
+- "Implemente usando a sua recomendação. Verifique novamente" (2026-09-16 14:47) — aprova o planejamento de 16 seções e as 12 recomendações.
+- "Rodar agora" (crit. 6) · "Ler depois da rodada" (crit. 7) · "endOfLine auto no .prettierrc" · "eslint --fix num commit chore à parte" · "Aprovar e adicionar C13 aqui" (veredito do crit. 7).
 - Protótipo é normativo para fluxo, conteúdo e comportamento; NÃO para provedor, prompt e diagnóstico.
 
 ### Tentativas que falharam
 - Heredoc `<<'EOF'` para escrever o `main.md`: shell reclamou de aspas não fechadas com backticks, acentos e pipes escapados juntos. Arquivo longo vai pela ferramenta de escrita.
 - Esperar que `corrections` ausente reprovasse em C5: `countCorrections` devolve `Infinity` e `Infinity > 0` é verdadeiro. A checagem estava frouxa, não o teste — C5 agora exige `Array.isArray`.
+- Medir idioma das explicações com heurística de 2 marcadores: acusou 11 de 33 quando o número real era 3. Calibrei contra as evidências reais antes de escrever C13.
+- Commitar `2a04013` com 1 erro de lint por não checar antes. Corrigido em `01c70a4`.
 
 ### Arquivos tocados
-- `scripts/eval/turn-schema.json` (fase 1) · `scripts/eval/turn-validator.mjs` (fase 2)
-- `scripts/eval/validate.mjs` (fase 3) · `scripts/eval/run.mjs` (fase 4) · `scripts/eval/grade.mjs` (fase 5)
+- `scripts/eval/turn-schema.json` · `turn-validator.mjs` · `validate.mjs` · `run.mjs` · `grade.mjs`
+- `docs/features/dialogo.md` — R.7: 4 DECs, 3 alternativas rejeitadas, 3 gotchas, delta de estado
+- harness, fora do contrato: `.prettierrc`, `eslint.config.js`, `scripts/specctl.mjs`, `src/routes/index.tsx`
 - `.scratch/extrair-v2.mjs` — extrator do bundle v2, descartável
 
 ### Onde parei
-Contrato fechado e verificável sem rede. Falta uma chamada de rede: 45 requisições ao `gpt-oss-20b`
-sob o novo schema. Sem a chave, os critérios 6 e 7 não fecham — e eu não os marco nem os dispenso.
+Entrega completa. 7/7 critérios, 45 evidências em `evidence/openai_gpt-oss-20b/`, tabela com 13
+checagens. Tudo que sobrou é calibração de prompt para a SPEC 0.2, não contrato.
 
 ### Sessões (máx 5 linhas + 1 agregada)
 - 2026-09-16 14:47 — reverificação do protótipo v2.dc, abertura desta SPEC, contrato v2 implementado, 5/7 critérios verificados.
+- 2026-09-16 16:12 — chave fornecida, rodada 45/45 após consertar o backoff de TPM, C13 adicionado, 7/7 evidenciados, harness do lint destravado.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -226,3 +233,51 @@ Registro de precisão: minha primeira medição de idioma acusou 11 de 33, e est
 heurística exigia 2 marcadores de português e super-marcou explicações curtas e legítimas como
 "Use 'hungry' sem 'with'." ou "O verbo deve vir antes do pronome.". O número real é 3.
 ⎿ commit d9a948a+dirty · 4 files changed, 62 insertions(+), 14 deletions(-)
+
+## 2026-09-16 16:38 — [conclusão] Contrato do turno v2 entregue: corrections[] estruturado, next_action e 13 checagens; 45/45 no gpt-oss-20b com zero falha de contrato e 7/7 critérios evidenciados
+
+Contrato do turno v2 entregue e medido. 7 de 7 critérios evidenciados.
+
+O que mudou no contrato: `correction_pt` (string) saiu; entraram `corrections[]` — array de até 3
+objetos com `original`, `suggested`, `explanation_pt` e `category` em enum de 6 valores — e
+`next_action` em enum de 4. Os 9 campos ficam em `required`, porque o strict mode do Groq exige
+`required` completo sob `additionalProperties: false`; ausência de correção se expressa como array
+vazio, que é um fato afirmado, não como campo ausente, que é ambíguo.
+
+O que a migração comprou, além de conformidade com a §12 do prompt de desenvolvimento: o teto de 3
+correções deixou de ser heurística de string — o grader v1 contava "em vez de" na prosa e devolvia
+`Infinity` quando não reconhecia o formato, reprovando em C3 turnos bem corrigidos sem erro algum.
+Agora é `corrections.length`. E três checagens novas passaram a existir porque a estrutura permitiu:
+C11 (evidência literal), C12 (não cobra repetição de quem não errou) e C13 (`explanation_pt` em
+português).
+
+Medição em 45 turnos no `openai/gpt-oss-20b`, contra a linha de base do v3 no mesmo dataset:
+C1 100%=100%, C4 88%→94%, C5 86%=86%, C7 89%→93%, C8 84%→82% (1 turno em 45, ruído),
+C11 100% (novo), C12 100% (novo), C13 88% (novo). Zero falha de contrato em 45 chamadas.
+
+As duas dúvidas que eu havia registrado no SNAPSHOT foram resolvidas pela evidência, e ambas para o
+lado bom: o modelo NÃO parafraseou em vez de citar trecho literal (C11 em 100% nas 33 correções), e
+`corrections[]` NÃO aumentou a sobre-correção — C4 melhorou 6 pontos e a única sobre-correção
+restante (`hotel-07`, artigo antes de "breakfast") é a que o próprio dataset marca como discutível.
+
+Três achados ficam para a SPEC 0.2, todos de calibração de prompt e nenhum de contrato:
+1. As 4 omissões de C5 têm padrão único — em todas o modelo pôs a forma correta em `suggestion_en`
+   em vez de `corrections[]`, inclusive nos dois casos que o prompt nomeia LITERALMENTE na via (b).
+   Nomear o exemplo no prompt não bastou; o modelo prefere a rota gentil.
+2. 3 das 33 `explanation_pt` saíram em inglês, a pior com metalinguagem gramatical em inglês para
+   aluno de nível baixo. C13 agora acusa; corrigir é prompt.
+3. O roteiro das missões saiu do domínio na v2 do protótipo e virou shim de preview, o que deixa a
+   DEC-20260916-0311 sem fallback de produção. Precisa voltar ao catálogo de missões na Fase 1.
+
+Fora do contrato desta SPEC, três problemas de harness foram destravados porque bloqueavam o gate
+do `close` e atingiriam toda SPEC futura: `bun run lint` não terminava (o eslint não lê o
+.gitignore e tentava formatar um bundle React de 3,1 MB em `.scratch/`); `core.autocrlf=true` mais
+o `endOfLine: "lf"` default do prettier deixavam o lint vermelho repo-wide desde antes desta
+branch; e 1522 erros de formatação em `specctl.mjs` e `routes/index.tsx` nunca haviam passado pelo
+prettier. Tudo em commits `chore`/`style` separados, com autorização do usuário para o último.
+
+Decisões do usuário nesta SPEC, citadas literalmente: "Implemente usando a sua recomendação.
+Verifique novamente" (14:47), "Rodar agora" para o critério 6, "Ler depois da rodada" para o 7,
+"endOfLine auto no .prettierrc" para o lint, "eslint --fix num commit chore à parte" para a
+formatação pré-existente, e "Aprovar e adicionar C13 aqui" como veredito do critério 7.
+⎿ commit 01c70a4+dirty · 2 files changed, 48 insertions(+), 3 deletions(-)
