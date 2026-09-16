@@ -3,20 +3,20 @@
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
 **Última atualização:** 2026-09-16 17:16
-**Onde tô:** SPEC aberta, contrato concretizado com 9 critérios (os 8 primeiros com `verify:`). Nada implementado.
-**Próximo passo:** fase 1 — declarar o subconjunto da matriz (`matriz.jsonl`) e a validação offline dele.
-**Última decisão:** a comparação v4→v5 é cirúrgica nas 7 falas que já falharam, em vez de nova rodada de 45.
-**Bloqueio atual:** nenhum. `GROQ_API_KEY` disponível em `.env.local` (ignorado pelo git).
+**Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
+**Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
+**Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
+**Bloqueio atual:** nenhum. Rodada em andamento sob teto de TOKENS/min.
 **Se retomar, ler:** `main.md` desta SPEC e a entrada `[unblock]` de 16:30 no journal arquivado da SPEC-20260916-1450, que traz os números do v4.
 
 ### Fases
 | # | Descrição | Status | Atualizado |
 |---|---|---|---|
-| 1 | `matriz.jsonl` — subconjunto declarado + `validate.mjs --matriz` | pendente | 2026-09-16 17:05 |
-| 2 | Prompt v5 — precedência da via (b) e `explanation_pt` amarrada ao português | pendente | 2026-09-16 17:05 |
-| 3 | `run.mjs --matriz` — 4 células por fala, evidência por nível e tom | pendente | 2026-09-16 17:05 |
-| 4 | `grade.mjs --matriz` — asserções de completude, invariância, diferença e teto | pendente | 2026-09-16 17:05 |
-| 5 | Rodada da matriz (48 chamadas) | pendente | 2026-09-16 17:05 |
+| 1 | `matriz.json` — subconjunto declarado + `validate.mjs --matriz` | concluído | 2026-09-16 17:12 |
+| 2 | Prompt v5 — precedência da via (b) e `explanation_pt` amarrada ao português | concluído | 2026-09-16 17:13 |
+| 3 | `run.mjs --matriz` e `--comparar-prompt` | concluído | 2026-09-16 17:14 |
+| 4 | `grade.mjs --matriz` — asserções de completude, invariância, diferença e teto | concluído | 2026-09-16 17:16 |
+| 5 | Rodada da matriz (48 chamadas) | em progresso | 2026-09-16 17:16 |
 | 6 | `--comparar-prompt` — as 7 falas do v4 contra o v5 (7 chamadas) | pendente | 2026-09-16 17:05 |
 | 7 | Leitura humana: troca C5×C4 e diferença percebida entre os tons | pendente | 2026-09-16 17:05 |
 
