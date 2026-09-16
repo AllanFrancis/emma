@@ -1,0 +1,54 @@
+{
+  "name": "emma_turn",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "reply_en",
+      "reply_pt",
+      "instruction_pt",
+      "correction_pt",
+      "suggestion_en",
+      "suggestion_pt",
+      "words",
+      "focus"
+    ],
+    "properties": {
+      "reply_en": {
+        "type": "string",
+        "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+      },
+      "reply_pt": {
+        "type": "string",
+        "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+      },
+      "instruction_pt": {
+        "type": "string",
+        "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+      },
+      "correction_pt": {
+        "type": "string",
+        "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+      },
+      "suggestion_en": {
+        "type": "string",
+        "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+      },
+      "suggestion_pt": {
+        "type": "string",
+        "description": "Traducao em portugues da sugestao acima."
+      },
+      "words": {
+        "type": "array",
+        "maxItems": 3,
+        "items": { "type": "string" },
+        "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+      },
+      "focus": {
+        "type": "string",
+        "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+      }
+    }
+  },
+  "strict": true
+}
