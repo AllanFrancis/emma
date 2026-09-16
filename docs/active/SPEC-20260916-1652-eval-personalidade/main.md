@@ -89,8 +89,8 @@ existem para impedir. Um número num relatório se justifica; uma asserção que
 
 ## Critério de aceite
 
-- [ ] O comparador de matriz se comporta como especificado: reconhece invariância violada, diferença ausente e desequilíbrio de teto entre tons, em casos de teste sem gastar API | verify: `node scripts/eval/grade.mjs --self-test`
-- [ ] O subconjunto da matriz é declarado como dado versionado, cobre os 4 contextos e inclui casos de controle, validado sem gastar API | verify: `node scripts/eval/validate.mjs --matriz`
+- [x] O comparador de matriz se comporta como especificado: reconhece invariância violada, diferença ausente e desequilíbrio de teto entre tons, em casos de teste sem gastar API (2026-09-16 17:15, commit `c3ecccf`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --self-test`
+- [x] O subconjunto da matriz é declarado como dado versionado, cobre os 4 contextos e inclui casos de controle, validado sem gastar API (2026-09-16 17:15, commit `c3ecccf`, verify: exit 0) | verify: `node scripts/eval/validate.mjs --matriz`
 - [ ] Matriz executada: cada fala do subconjunto tem as 4 células {nível 1, nível 4} × {tranquila, direta} com evidência persistida | verify: `node scripts/eval/grade.mjs --matriz --assert-completo`
 - [ ] Invariância pedagógica: `corrections[].suggested`, `category` e `focus` idênticos nas 4 células da mesma fala | verify: `node scripts/eval/grade.mjs --matriz --assert-invariancia`
 - [ ] Diferença de estilo: `reply_en` e `explanation_pt` mensuravelmente distintos entre tranquila e direta | verify: `node scripts/eval/grade.mjs --matriz --assert-diferenca`

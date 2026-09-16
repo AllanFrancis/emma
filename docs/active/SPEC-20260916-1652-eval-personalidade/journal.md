@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 17:05
+**Última atualização:** 2026-09-16 17:16
 **Onde tô:** SPEC aberta, contrato concretizado com 9 critérios (os 8 primeiros com `verify:`). Nada implementado.
 **Próximo passo:** fase 1 — declarar o subconjunto da matriz (`matriz.jsonl`) e a validação offline dele.
 **Última decisão:** a comparação v4→v5 é cirúrgica nas 7 falas que já falharam, em vez de nova rodada de 45.
@@ -50,3 +50,62 @@ SPEC aberta na branch `feature/eval-personalidade`, contrato com 9 critérios. I
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
 
 ## 2026-09-16 17:05 — [ativação] SPEC ativada (branch feature/eval-personalidade, base main)
+
+## 2026-09-16 17:15 — [nota] verify: 3/8 critérios passaram (commit `c3ecccf`)
+
+- PASS: O comparador de matriz se comporta como especificado: recon…
+- PASS: O subconjunto da matriz é declarado como dado versionado, c…
+- FAIL: Matriz executada: cada fala do subconjunto tem as 4 células…
+- FAIL: Invariância pedagógica: `corrections[].suggested`, `categor…
+- PASS: Diferença de estilo: `reply_en` e `explanation_pt` mensurav…
+- FAIL: Nenhum tom corrige mais itens que o outro para a mesma fala…
+- FAIL: As 13 checagens do contrato v2 seguem verdes sobre as saída…
+- FAIL: Comparação v4→v5 nas 7 falas que falharam, com as duas evid…
+
+## 2026-09-16 17:15 — [nota] verify: 2/8 critérios passaram (commit `c3ecccf`)
+
+- PASS: O comparador de matriz se comporta como especificado: recon…
+- PASS: O subconjunto da matriz é declarado como dado versionado, c…
+- FAIL: Matriz executada: cada fala do subconjunto tem as 4 células…
+- FAIL: Invariância pedagógica: `corrections[].suggested`, `categor…
+- FAIL: Diferença de estilo: `reply_en` e `explanation_pt` mensurav…
+- FAIL: Nenhum tom corrige mais itens que o outro para a mesma fala…
+- FAIL: As 13 checagens do contrato v2 seguem verdes sobre as saída…
+- FAIL: Comparação v4→v5 nas 7 falas que falharam, com as duas evid…
+
+## 2026-09-16 17:16 — [blocker] Passe espurio no criterio 5: assercoes de matriz concluiam sobre 12 de 48 celulas; gate corrigido e selo falso desfeito a mao porque o verify marca mas nao desmarca
+
+Erro meu, pego pelo próprio gate ao ser executado no meio da rodada.
+
+O `verify` das 17:15 marcou o critério 5 (`--assert-diferenca`) como `[x]` com exit 0. **Era passe
+espúrio.** Só 12 das 48 células estavam gravadas naquele momento, e minhas três asserções de matriz
+só recusavam quando NÃO havia célula nenhuma (`porFala.size === 0`). Com matriz pela metade elas
+prosseguiam e passavam por falta de dados: nenhuma violação encontrada porque as falas que
+poderiam violar ainda não tinham sido chamadas.
+
+Um gate que passa antes de a medição terminar é pior do que gate nenhum: ele transforma "não medi"
+em "está certo". E o modo de falha era silencioso — o exit 0 não distinguia "comparei e não achei
+problema" de "não tinha o que comparar".
+
+CORREÇÃO NO GATE: `exigirCelulas` agora carrega a matriz declarada e exige que TODA fala tenha
+todas as suas células antes de qualquer asserção concluir. Com 12/48 ele reprova nomeando as 8
+falas incompletas. Vale para invariância, diferença e teto — as três concluem sobre a matriz, então
+as três exigem a matriz inteira.
+
+BURACO NO HARNESS, que vale registrar porque não é meu: rodei `specctl verify --all` esperando que
+a reavaliação corrigisse o selo. O comando RE-EXECUTOU o critério e reportou `FAIL`, mas **não
+removeu o `[x]`** — a ferramenta marca e nunca desmarca. Consequência: um gate que fica mais
+rigoroso depois de um passe deixa um selo falso no contrato, e o `close` aceitaria esse critério
+como cumprido. Não existe `uncheck` no `specctl` (o `reopen` é para SPEC arquivada, não para
+critério).
+
+Desfiz o `[x]` à mão e registro aqui em vez de silenciar. O `formats.md` diz que `[x]` é gravado
+pela FERRAMENTA e que escrever "verify: exit 0" à mão é spoofing — retirar uma afirmação falsa é o
+oposto disso, mas a edição manual de um campo que deveria ser da ferramenta merece rastro. Depois
+que a rodada terminar, o critério será reavaliado pelo gate corrigido e, se passar, o selo será da
+ferramenta e verdadeiro.
+
+Lição que passa para as próximas SPECs: não rodar `verify` no meio de uma rodada longa. O gate tem
+de recusar dado parcial por construção, mas o hábito de verificar cedo transforma qualquer gate
+frouxo em selo falso.
+⎿ commit c3ecccf+dirty · 3 files changed, 44 insertions(+), 3 deletions(-)

@@ -1,0 +1,165 @@
+{
+  "id": "cafe-02",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "direta",
+  "nivel": 1,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-16T21:11:53.034Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 1. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Pedir um cafe. Cenario: The student is at a coffee shop counter in London. You are the barista.\nTom: direta e sem rodeios. Cobra a repeticao. Nunca ofende, humilha nem usa palavrao.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "I want a coffee"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-50c5eb90-8055-480d-83f3-481c945b32d8",
+    "object": "chat.completion",
+    "created": 1789593130,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Sure, what kind of coffee would you like?\",\"reply_pt\":\"Claro, que tipo de café você gostaria?\",\"instruction_pt\":\"Repita a frase corrigida.\",\"corrections\":[{\"original\":\"I want a coffee\",\"suggested\":\"Can I get a coffee?\",\"explanation_pt\":\"Essa frase é mais natural em inglês para pedir um café.\",\"category\":\"register\"}],\"suggestion_en\":\"Can I get a coffee?\",\"suggestion_pt\":\"Eu gostaria de um café?\",\"words\":[\"I'd like\",\"a coffee\",\"what kind of\"],\"focus\":\"Solicitar café de maneira natural\",\"next_action\":\"retry\"}",
+          "reasoning": "We need to produce JSON with fields: reply_en, reply_pt, instruction_pt, corrections, suggestion_en, suggestion_pt, words, focus, next_action.\n\nWe analyze student utterance: \"I want a coffee\". It's at a coffee shop counter. The barista should respond.\n\nWe must first respond to the meaning: The student wants a coffee. Provide a direct answer and ask a question.\n\nWe need corrections: The phrase \"I want a coffee\" is a bit unnatural; the more idiomatic would be \"I'd like a coffee\" or \"Can I have a coffee?\" But we have to see if we need to correct. The student says \"I want a coffee\". This is not necessarily wrong; it is grammatical but maybe unnatural. The instruction says we need to correct if it is a systematic pattern from Portuguese. This phrase could be a typical translation of \"Eu quero um café\". That is a direct translation. In English, \"I want a coffee\" is okay but less natural. The correct is \"Can I get a coffee?\" or \"I'd like a coffee.\" So we should provide a correction.\n\nThe correction would be \"Can I get a coffee?\" or \"I'd like a coffee.\" Let's see if we must include it. According to rules: If the student has systematic pattern, we must correct. The pattern \"I want a coffee\" is a direct translation from Portuguese. It's not extremely wrong, but it's not natural. So we can correct: category: vocabulary? It might be register? The phrase \"I want a coffee\" is grammatical but not the most natural. So we can offer a correction. The correction suggestion: \"Can I get a coffee?\" or \"I'd like a coffee.\" Choose one. The correction: original \"I want a coffee\" -> suggested \"Can I get a coffee?\" Explanation: \"Essa frase é mais natural em inglês para pedir um café.\" category: register.\n\nWe have to include original literal. Provide explanation_pt. Category: register or vocabulary? I think register is fine.\n\nWe can include 1 correction.\n\nWe need focus: \"Pedir café\" maybe \"expressing a request for coffee\". A short point. Let's set: \"Solicitar café de maneira natural\".\n\nWe need instruction_pt: \"Repita a frase corrigida.\" or \"Tente repetir a frase corrigida.\" The next_action: \"retry\".\n\nReply_en: we need to respond first to meaning: \"Sure, what kind of coffee would you like?\" That's 3 sentences max, ending with a question. Good.\n\nReply_pt: \"Claro, que tipo de café você gostaria?\" (short).\n\nSuggestion_en: \"Can I get a coffee?\" Or \"I'd like a coffee.\" Provide suggestion that the student could say now. Maybe \"I'd like a coffee.\" Suggestion_pt: \"Eu gostaria de um café.\"\n\nWords: maybe \"I'd like\", \"coffee\", \"how\" but maybe three expressions: \"I'd like\", \"a coffee\", \"what kind of\" but keep short. Let's list: \"I'd like\", \"a coffee\", \"what kind of\".\n\nWe need next_action: \"retry\" (the student repeats the corrected phrase).\n\nCheck schema: corrections array max 3. Provide one.\n\nLet's construct JSON.\n\nCheck all fields: reply_en, reply_pt, instruction_pt, corrections, suggestion_en, suggestion_pt, words, focus, next_action.\n\nMake sure JSON is compact (no newlines?) but it's okay to use formatting, but as long as it's valid. Use compact but can have line breaks; it's fine.\n\nLet's produce.\n\n"
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.216606341,
+      "prompt_tokens": 1539,
+      "prompt_time": 0.104107043,
+      "completion_tokens": 868,
+      "completion_time": 0.94238457,
+      "total_tokens": 2407,
+      "total_time": 1.046491613,
+      "completion_tokens_details": {
+        "reasoning_tokens": 725
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_851252edc2",
+    "x_groq": {
+      "id": "req_01m2p104qcejrv1ganwn9vjkn9",
+      "seed": 1269737227
+    },
+    "service_tier": "on_demand"
+  }
+}

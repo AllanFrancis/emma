@@ -711,10 +711,29 @@ function normalizarTexto(t) {
     .trim();
 }
 
+// Toda assercao da matriz exige a matriz COMPLETA antes de concluir qualquer coisa.
+// Sem isso, uma rodada pela metade faz as assercoes passarem por falta de dados — e um
+// gate que passa antes de a medicao terminar e pior que gate nenhum.
 function exigirCelulas(porFala) {
   if (porFala.size === 0) {
     console.log("ERRO  nenhuma celula da matriz gravada — a rodada ainda nao aconteceu.");
     console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --matriz");
+    process.exit(1);
+  }
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const esperadas = matriz.niveis.length * matriz.tons.length;
+  const incompletas = [];
+  for (const fala of matriz.falas) {
+    const celulas = porFala.get(fala.id) ?? [];
+    const chaves = new Set(celulas.map((c) => `n${c.nivel}-${c.tom}`));
+    if (chaves.size !== esperadas) incompletas.push(`${fala.id} (${chaves.size}/${esperadas})`);
+  }
+  if (incompletas.length > 0) {
+    console.log(
+      `ERRO  matriz INCOMPLETA — ${incompletas.length} de ${matriz.falas.length} falas sem todas as celulas.`,
+    );
+    console.log(`      ${incompletas.join(", ")}`);
+    console.log("      Assercao sobre matriz parcial nao conclui nada; termine a rodada primeiro.");
     process.exit(1);
   }
 }
