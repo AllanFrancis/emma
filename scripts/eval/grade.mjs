@@ -19,7 +19,21 @@ const DATASET = path.join(HERE, 'dataset.jsonl');
 const TETO_PALAVRAS = { 1: 15, 2: 18, 3: 26, 4: 36, 5: 48 };
 // Metalinguagem na fala EM INGLES denuncia aula de gramatica no lugar de conversa.
 const METALINGUAGEM = /\b(grammar|grammatical|mistake|error|correction|conjugat|tense|verb form)\b/i;
-const MARCAS_PT = /[áàâãéêíóôõúç]|\b(voce|você|em vez de|diga|agora|porque|quando|isso|para)\b/i;
+// Deteccao de portugues por CONTAGEM, nao por lista curta. A versao anterior procurava
+// acento ou meia duzia de palavras e reprovava portugues legitimo sem acento — ex.:
+// "Use a frase mais educada" e "Responda dizendo seu nome". Falso positivo em requisito
+// central (bilinguismo) e pior que nao medir.
+const PT = /\b(que|nao|não|seu|sua|deseja|dizendo|diga|fazer|frase|mais|uma|para|com|responda|pergunte|agora|voce|você|isso|porque|quando|em vez de|do|da|dos|das|no|na|pedido|tamanho|conte|escolha|use o|repita)\b/gi;
+const EN = /\b(the|your|you|verb|before|subject|word|order|sentence|answer|say|tell|ask|instead|question)\b/gi;
+
+function ehPortugues(s) {
+  if (typeof s !== 'string' || s.trim() === '') return false;
+  if (/[áàâãéêíóôõúç]/i.test(s)) return true;
+  const pt = (s.match(PT) || []).length;
+  const en = (s.match(EN) || []).length;
+  if (pt >= 2) return true;
+  return pt >= 1 && en === 0;
+}
 
 const CHECAGENS = [
   {
@@ -62,7 +76,7 @@ const CHECAGENS = [
     id: 'C7',
     nome: 'instrucao em portugues',
     criterio: 'explica em portugues quando necessario',
-    fn: (t) => MARCAS_PT.test(t.instruction_pt || ''),
+    fn: (t) => ehPortugues(t.instruction_pt || ''),
   },
   {
     id: 'C8',
@@ -184,6 +198,9 @@ function dirsEvidencia() {
     const ev = path.join(ativo, s, 'evidence');
     if (!fs.existsSync(ev)) continue;
     for (const modelo of fs.readdirSync(ev)) {
+      // Pastas com '_' na frente sao baselines arquivadas (ex.: _baseline-prompt-v1),
+      // guardadas para comparacao historica. Nao sao modelos e nao entram na tabela.
+      if (modelo.startsWith('_')) continue;
       const dir = path.join(ev, modelo);
       if (fs.statSync(dir).isDirectory()) saida.push({ modelo, dir });
     }

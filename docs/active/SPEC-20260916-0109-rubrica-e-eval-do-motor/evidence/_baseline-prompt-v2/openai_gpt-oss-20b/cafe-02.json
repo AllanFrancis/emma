@@ -1,0 +1,115 @@
+{
+  "id": "cafe-02",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T05:47:11.035Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 2. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Pedir um cafe. Cenario: The student is at a coffee shop counter in London. You are the barista.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai: correction_pt e SO para o que atrapalha a comunicacao ou soa errado a um falante nativo. Se o aluno se comunicou bem e voce apenas conhece um jeito mais natural de dizer, isso vai em suggestion_en — nao em correction_pt. Uma frase curta que resolve a situacao nao e um erro: deixe correction_pt vazia e ofereca o upgrade como sugestao.\nResponda no formato JSON definido pelo schema."
+      },
+      {
+        "role": "user",
+        "content": "I want a coffee"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "correction_pt",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "correction_pt": {
+              "type": "string",
+              "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-6c660236-d568-4776-8b7c-b3f83fc66ddc",
+    "object": "chat.completion",
+    "created": 1789537649,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Sure! What type of coffee would you like?\",\"reply_pt\":\"Claro! Que tipo de café você gostaria?\",\"instruction_pt\":\"Pergunte qual tipo de café o cliente prefere.\",\"correction_pt\":\"\",\"suggestion_en\":\"I’d like a coffee, please.\",\"suggestion_pt\":\"Eu gostaria de um café, por favor.\",\"words\":[\"type of coffee\",\"Sure\",\"would like\"],\"focus\":\"\"}",
+          "reasoning": "The user says: \"I want a coffee\". We need to respond as the barista. We need to do a response in JSON with the specified fields. The user says they want a coffee. We need to respond first to the meaning: \"Sure, what would you like? Do you want a cappuccino, latte, etc.\" Provide a question in English. We also need to provide correction_pt, focus, instruction_pt, suggestion_en, suggestion_pt, words array, reply_pt, reply_en. The user hasn't provided any mistakes. So correction_pt can be empty. Focus empty. But maybe we can add suggestion for natural phrasing? They said \"I want a coffee\". It's fine. Maybe we suggest \"I would like a coffee.\" But that's okay. The user might not have any errors. The guidelines: \"If the student communicated well and you know a more natural way, that's in suggestion_en, not in correction_pt.\" So we can put suggestion_en: \"I’d like a coffee, please.\" That's a suggestion, not correction.\n\nWe need to fill all fields. reply_en: The barista says something: \"Sure! What type of coffee would you like?\" That ends with a question. That would answer the meaning. reply_pt: \"Claro! Que tipo de café você gostaria?\" That is translation. instruction_pt: \"Ask the student what type of coffee they'd like.\" Or \"Pergunte que tipo de café eles gostariam.\" Suggestion_pt: translation of suggestion_en. Suggestion_en: \"I’d like a coffee, please.\" Suggestion_pt: \"Eu gostaria de um café, por favor.\" Words: maybe \"would like\", \"type of coffee\", \"Sure\". We'll pick \"type of coffee\", \"Sure\", \"would like\" up to 3.\n\nWe need to ensure no fields omitted. Fields: reply_en, reply_pt, instruction_pt, correction_pt, suggestion_en, suggestion_pt, words, focus. Provide all.\n\nFocus: empty string. Correction_pt: empty string.\n\nNow JSON: ensure compact.\n\nLet's write the object.\n\nCheck: all required fields present. Let's produce."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.246886634,
+      "prompt_tokens": 751,
+      "prompt_time": 0.038457844,
+      "completion_tokens": 532,
+      "completion_time": 0.591755329,
+      "total_tokens": 1283,
+      "total_time": 0.630213173,
+      "completion_tokens_details": {
+        "reasoning_tokens": 433
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_d3e146e1a5",
+    "x_groq": {
+      "id": "req_01m2mc30e6eq4aae6jbxqpwg1v",
+      "seed": 1855705067
+    },
+    "service_tier": "on_demand"
+  }
+}

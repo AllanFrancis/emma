@@ -1,0 +1,115 @@
+{
+  "id": "cafe-12",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T05:56:37.652Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Pedir um cafe. Cenario: The student is at a coffee shop counter in London. You are the barista.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: corrija em correction_pt. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe correction_pt vazia e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nResponda no formato JSON definido pelo schema."
+      },
+      {
+        "role": "user",
+        "content": "Sorry, can you repeat please? I didn't understand."
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "correction_pt",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "correction_pt": {
+              "type": "string",
+              "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-f92a2f1e-cf9a-4a5a-b66f-221d7531f090",
+    "object": "chat.completion",
+    "created": 1789538216,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"correction_pt\":\"\",\"focus\":\"\",\"instruction_pt\":\"Pergunte ao cliente o que ele gostaria de pedir.\",\"reply_en\":\"Sure! What would you like to order?\",\"reply_pt\":\"Claro! O que você gostaria de pedir?\",\"suggestion_en\":\"I would like a coffee, please.\",\"suggestion_pt\":\"Eu gostaria de um café, por favor.\",\"words\":[\"repeat\",\"understand\",\"order\"]}",
+          "reasoning": "We need to generate response as per schema. Student at coffee shop counter in London, wants coffee. The student said: \"Sorry, can you repeat please? I didn't understand.\" That is a request to repeat. They want to order? They just said that. We are barista. We need to respond in English: we should clarify. Since the student is asking to repeat, we respond: \"Sure! What would you like to order?\" The reply should have a question. We need to provide correction_pt, focus, instruction_pt, reply_en, reply_pt, suggestion_en, suggestion_pt, words, focus.\n\nWe need to see if there are any errors in student's sentence: \"Sorry, can you repeat please? I didn't understand.\" It's fine, no corrections needed. So correction_pt empty. Focus: maybe nothing. instruction_pt: \"Pergunte o que o aluno quer pedir\" but we have to give instruction in Portuguese, telling what to do. The instruction should say \"Ask what the customer wants to order.\" So instruction_pt: \"Pergunte ao cliente o que ele gostaria de pedir.\" Words: we could list \"repeat\", \"didn't understand\" maybe? But words are at most 3 expressions. Could include \"Sorry\", \"please\". But these are not key expressions. The instruction for the student: we need to respond to meaning. So reply_en: \"Sure! What would you like to order?\" Ends with a question. reply_pt: translation. suggestion_en: model short answer for student: \"I would like a coffee, please.\" suggestion_pt: translation. Focus: maybe blank. Correction_pt: empty.\n\nLet's craft JSON accordingly. Ensure all fields present.\n\nCheck: \"focus\" description: \"Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver.\" We have no improvement needed, so empty. So focus: \"\".\n\n\"words\": up to 3. Maybe include \"repeat\" and \"understand\" as key words? They might be relevant. But it's the student speaking. We could include \"sorry\", \"repeat\", \"understand\" as words. But these are common. But it's okay.\n\nWe'll produce:\n\n{\n \"correction_pt\":\"\",\n \"focus\":\"\",\n \"instruction_pt\":\"Pergunte ao cliente o que ele gostaria de pedir.\",\n \"reply_en\":\"Sure! What would you like to order?\",\n \"reply_pt\":\"Claro! O que você gostaria de pedir?\",\n \"suggestion_en\":\"I would like a coffee, please.\",\n \"suggestion_pt\":\"Eu gostaria de um café, por favor.\",\n \"words\":[\"repeat\",\"understand\",\"order\"]\n}\n\nMake sure JSON compact."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.155176446,
+      "prompt_tokens": 883,
+      "prompt_time": 0.045290819,
+      "completion_tokens": 639,
+      "completion_time": 0.725921886,
+      "total_tokens": 1522,
+      "total_time": 0.771212705,
+      "completion_tokens_details": {
+        "reasoning_tokens": 544
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_228717f27c",
+    "x_groq": {
+      "id": "req_01m2mcm9qrexqry85hjv9vdbqj",
+      "seed": 718524374
+    },
+    "service_tier": "on_demand"
+  }
+}

@@ -93,7 +93,7 @@ reler resultado.
 
 ## Critério de aceite
 
-- [ ] Rubrica de nível 1–5 documentada, com descritores observáveis por critério e exigência de evidência | evidence: manual @allan
+- [x] Rubrica de nível 1–5 documentada, com descritores observáveis por critério e exigência de evidência | evidence: manual @allan (2026-09-16 01:40, commit `ffe0ac0`)
 - [x] Dataset com ≥40 falas versionado e estruturalmente válido (2026-09-16 01:28, commit `43aee0f`, verify: exit 0) | verify: `node scripts/eval/validate.mjs`
 - [x] Contrato do turno em JSON Schema, com additionalProperties false, validado (2026-09-16 01:28, commit `43aee0f`, verify: exit 0) | verify: `node scripts/eval/validate.mjs --schema`
 - [x] Runner executa o dataset contra ≥2 modelos e persiste as saídas em evidence/ (2026-09-16 01:31, commit `43aee0f`, verify: exit 0) | verify: `node scripts/eval/run.mjs --dry`

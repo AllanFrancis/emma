@@ -1,0 +1,115 @@
+{
+  "id": "hotel-07",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T05:57:36.882Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: corrija em correction_pt. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe correction_pt vazia e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nResponda no formato JSON definido pelo schema."
+      },
+      {
+        "role": "user",
+        "content": "What time is the breakfast?"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "correction_pt",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "correction_pt": {
+              "type": "string",
+              "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-70239963-f911-4423-9f6d-f1251a986dcd",
+    "object": "chat.completion",
+    "created": 1789538275,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Breakfast is served from 7:00 to 9:00. Is there anything else I can help you with?\",\"reply_pt\":\"O café da manhã é servido das 7h às 9h. Precisa de mais alguma coisa?\",\"instruction_pt\":\"Repita a pergunta sem o artigo: \\\"What time is breakfast?\\\"\",\"correction_pt\":\"Em vez de \\\"What time is the breakfast?\\\", diga \\\"What time is breakfast?\\\" - usamos artigo apenas quando se refere a algo específico.\",\"suggestion_en\":\"Breakfast is from 7 to 9 in the morning.\",\"suggestion_pt\":\"O café da manhã é das 7 às 9 da manhã.\",\"words\":[\"What time\",\"breakfast\"],\"focus\":\"Use o artigo corretamente antes de nomes de refeições.\"}",
+          "reasoning": "We need to respond as the receptionist. The user says \"What time is the breakfast?\" In Portuguese the user might be expecting \"What time is breakfast served?\" So we reply in English, polite, ask if they'd like to confirm breakfast time, maybe mention 7-9 am. Need to include all fields in JSON.\n\nWe need to check for correction_pt: does the student have any errors? Their sentence: \"What time is the breakfast?\" This is acceptable but maybe more natural: \"What time is breakfast?\" The phrase \"the breakfast\" is slightly awkward but not wrong. We can note suggestion: \"in vez de 'What time is the breakfast?' diga 'What time is breakfast?'\" But \"What time is the breakfast?\" is not a major error. According to the rules: \"CORRECT if it sounds wrong or a systematic pattern.\" Using \"the\" before breakfast is unnatural. So we can correct. Also check for high value corrections: yes.\n\nFocus: a point of improvement, short. \"Use article correctly before meals.\"\n\nInstruction_pt: what to do next. \"Você pode perguntar a hora do café da manhã.\" or \"Pergunte a hora do café da manhã.\" But we need to give instruction to the student on what to do next. That is likely to say: \"Now say: 'What time is breakfast?'\". But we are responding to the student's sentence. The instruction is \"Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia.\" So we need to instruct the student: \"Repita a pergunta usando a forma correta.\" Or \"Faça a pergunta com o artigo omitido\". So: \"Repita a pergunta sem o artigo: What time is breakfast?\"\n\nreply_en: We need to reply as the receptionist, but also we should address the correction? Wait: The instruction is to respond first to the meaning of what the student said. So reply_en must answer: \"Breakfast is served from 7:00 to 9:00. Would you like to schedule a reminder?\" That is fine.\n\nreply_pt: short translation of the reply.\n\nsuggestion_en: a model short answer the student could say now: \"Breakfast is from 7 to 9.\" Or \"What time is breakfast?\" But they've already said that. Maybe we can give suggestion: \"Breakfast is from 7 to 9 in the morning.\" Or \"Can you tell me when breakfast is?\" But maybe they ask \"What time is the breakfast?\" We can suggest: \"Breakfast is from 7 to 9 am.\" But they might not ask again.\n\nBut the suggestion is to give a model reply in English that the student could say now. Since they asked about breakfast time, the model answer could be: \"Breakfast is from 7 to 9 in the morning.\" But that is a response. But the instruction says \"Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele.\" So the student could say that. But they may not have responded to us. But we can provide suggestion to ask \"Can I help you with anything else?\" or \"Would you like a coffee?\" But it's about breakfast. So maybe suggestion: \"Breakfast is from 7 to 9.\" That would be a reply. We'll provide that.\n\nfocus: a short improvement point. Maybe \"Use article 'the' before meal names only when specifying a particular meal.\" Or \"Use 'breakfast' without article.\"\n\nwords: up to 3 English expressions practiced. Maybe \"what time\", \"breakfast\", \"serve\". But we should list the words/expressions that appear. \"What time\", \"breakfast\". So array: [\"What time\", \"breakfast\"].\n\nLet's construct JSON:\n\ncorrection_pt: \"Em vez de 'What time is the breakfast?', diga 'What time is breakfast?' - porque usamos artigo apenas quando se refere a algo específico.\" \n\nBut we can keep the phrase simpler: \"Em vez de 'What time is the breakfast?', diga 'What time is breakfast?' - 'breakfast' is a generic meal.\" It's okay.\n\nFocus: \"Use article correctly before meal names.\" Or \"Evite o artigo antes de nomes de refeições.\" We'll put short.\n\nInstruction_pt: \"Repita a pergunta sem o artigo: 'What time is breakfast?'\" Or \"Use 'What time is breakfast?'\".\n\nreply_en: \"Breakfast is served from 7:00 to 9:00. Is there anything else I can help you with?\" Must end with question.\n\nreply_pt: \"O café da manhã é servido das 7h às 9h. Precisa de mais alguma coisa?\"\n\nsuggestion_en: \"Breakfast is from 7 to 9 in the morning.\" That is short.\n\nsuggestion_pt: \"O café da manhã é das 7 às 9 da manhã.\"\n\nwords: [\"What time\", \"breakfast\"]\n\nDouble-check fields: reply_en, reply_pt, instruction_pt, correction_pt, suggestion_en, suggestion_pt, words, focus. All present.\n\nNow produce final JSON."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.207840678,
+      "prompt_tokens": 877,
+      "prompt_time": 0.047443455,
+      "completion_tokens": 1207,
+      "completion_time": 1.2731986659999999,
+      "total_tokens": 2084,
+      "total_time": 1.3206421210000001,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1030
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_e594c51153",
+    "x_groq": {
+      "id": "req_01m2mcp2zqegtvrd3dr2r5e9ma",
+      "seed": 502236626
+    },
+    "service_tier": "on_demand"
+  }
+}

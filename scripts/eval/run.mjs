@@ -18,9 +18,11 @@ const DATASET = path.join(HERE, 'dataset.jsonl');
 const SCHEMA = path.join(HERE, 'turn-schema.json');
 const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
-// Modelos vistos na documentacao oficial do Groq usando response_format json_schema.
-// Confirmar contra o catalogo vivo antes de tirar conclusao — catalogos mudam.
-const CANDIDATOS = ['moonshotai/kimi-k2-instruct', 'openai/gpt-oss-20b'];
+// Confirmados contra o catalogo vivo (GET /openai/v1/models) em 2026-09-16.
+// O catalogo tinha 13 entradas; estas sao as conversacionais — o resto e TTS (orpheus),
+// STT (whisper), classificador de seguranca (prompt-guard, gpt-oss-safeguard) ou foco
+// em arabe (allam-2-7b). 'moonshotai/kimi-k2-instruct', que estava na doc, da 404 aqui.
+const CANDIDATOS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
 
 const CENARIOS = {
   cafe: {
@@ -66,6 +68,7 @@ function systemPrompt({ nivel, cenario, tom }) {
       ? 'Tom: direta e sem rodeios. Cobra a repeticao. Nunca ofende, humilha nem usa palavrao.'
       : 'Tom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.',
     'Regras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.',
+    'Onde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: corrija em correction_pt. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque ("do a check-in" em vez de "check in", "I have 25 years", "I am with hunger"), falso cognato ("pretend", "actually", "doubt"), estrutura ("people is", pergunta sem auxiliar) ou uso que soa rispido no contexto ("I want a coffee" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe correction_pt vazia e ofereca em suggestion_en. Uma frase curta que resolve a situacao ("Coffee.", "Two coffees, please.") nao e erro: nao corrija.',
     'Responda no formato JSON definido pelo schema.',
   ].join('\n');
 }

@@ -1,0 +1,115 @@
+{
+  "id": "hotel-05",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T05:57:12.084Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 2. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: corrija em correction_pt. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe correction_pt vazia e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nResponda no formato JSON definido pelo schema."
+      },
+      {
+        "role": "user",
+        "content": "I have 25 years"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "correction_pt",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "correction_pt": {
+              "type": "string",
+              "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-6b24e0a0-275c-4ffb-bd1d-7c8ae7b167d1",
+    "object": "chat.completion",
+    "created": 1789538251,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"correction_pt\":\"em vez de 'I have 25 years', diga 'I am 25 years old' - usamos 'am' para indicar idade e 'years old' para completar a frase.\",\"focus\":\"Use 'am' instead of 'have' to talk about age.\",\"instruction_pt\":\"Use 'am' instead of 'have' to indicate your age and include 'years old', for example: 'I am 25 years old'.\",\"reply_en\":\"Thank you for letting me know you are 25 years old. May I please see your ID?\",\"reply_pt\":\"Obrigado por me dizer que você tem 25 anos. Posso ver seu documento, por favor?\",\"suggestion_en\":\"I am 25 years old.\",\"suggestion_pt\":\"Eu tenho 25 anos.\",\"words\":[\"I am 25 years old\",\"years old\",\"ID\"]}",
+          "reasoning": "The user says: \"I have 25 years\". In hotel reception, maybe they want to say their age? They might have said \"I have 25 years\" to indicate age. This is non-idiomatic. The correct way: \"I am 25 years old\" or \"I'm 25\" or \"I am 25\". In Portuguese: \"Eu tenho 25 anos\" is fine, but in English we say \"I'm 25 years old\". So correction needed. The user likely just says \"I have 25 years\" to say age. So we need to respond in English: Recognize meaning: \"Got it, you're 25.\" Then ask next question about ID? \"Could you show me your ID, please?\" And correction: \"em vez de 'I have 25 years', diga 'I am 25 years old' - we use 'am' for age, not 'have'.\" Also possibly \"I have 25 years\" is not correct. The user hasn't said anything else. We need to provide the JSON with required fields. Let's fill.\n\nFocus: The student needs improvement on age expression. So short improvement: \"Use 'am' for age.\" So focus: \"Use 'am' instead of 'have' for age\". Or \"Age is expressed with 'am' and 'years old'.\" Something short.\n\ninstruction_pt: \"Explique ao cliente que é preciso usar 'am' para indicar a idade e que deve dizer 'I am 25 years old'.\" But instruction must be exactly: \"Uma frase em português dizendo ao aluno exatamente o que fazer agora. Nunca vazia.\" So maybe: \"Use 'am' instead of 'have' para indicar idade e inclua 'years old'.\" Or \"Diga 'I am 25 years old'.\" That is instruction.\n\ncorrection_pt: \"em vez de 'I have 25 years', diga 'I am 25 years old' - usamos 'am' para idade e 'years old'.\" That's correct.\n\nreply_en: \"Thank you for letting me know you are 25 years old. Can I see your ID, please?\" Should end with a question. Yes.\n\nreply_pt: \"Obrigado por me informar que você tem 25 anos. Posso ver seu documento, por favor?\" But note: \"tem 25 anos\" is ok. Or \"Obrigado por dizer que você tem 25 anos.\" Actually reply_pt must be a short translation of reply_en. So translation: \"Obrigado por me dizer que você tem 25 anos. Posso ver seu documento, por favor?\" That's translation.\n\nsuggestion_en: \"I am 25 years old.\" That's suggestion.\n\nsuggestion_pt: \"Eu tenho 25 anos.\" or \"Eu sou de 25 anos.\" But in Portuguese, we say \"Eu tenho 25 anos.\" But the suggestion is for student to say in English. So suggestion_pt is translation: \"Eu tenho 25 anos.\"\n\nwords: up to 3 expressions. Could include: \"I am 25 years old\", \"years old\", \"have\". But maybe \"I am 25 years old\" is one. \"years old\" is separate. \"ID\" might be. But we want at most 3. So: [\"I am 25 years old\", \"years old\", \"ID\"]. That's fine.\n\nFocus: maybe \"Use 'am' for age\". So focus: \"Use 'am' em vez de 'have'\".\n\nNow let's produce JSON.\n\nCheck schema: All required fields present. Types: all strings or arrays. Good.\n\nLet's produce."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.134358713,
+      "prompt_tokens": 876,
+      "prompt_time": 0.046532817,
+      "completion_tokens": 928,
+      "completion_time": 0.982834773,
+      "total_tokens": 1804,
+      "total_time": 1.02936759,
+      "completion_tokens_details": {
+        "reasoning_tokens": 739
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_63473661d7",
+    "x_groq": {
+      "id": "req_01m2mcnb3sexqae1kbsdzetnea",
+      "seed": 85457423
+    },
+    "service_tier": "on_demand"
+  }
+}
