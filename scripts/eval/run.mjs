@@ -8,6 +8,10 @@ const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(CURRENT_DIR, "..", "..");
 const DATASET_PATH = path.join(CURRENT_DIR, "dataset.jsonl");
 const SCHEMA_PATH = path.join(CURRENT_DIR, "turn-schema.json");
+const MATRIZ_PATH = path.join(CURRENT_DIR, "matriz.json");
+// Versao do prompt de sistema, gravada em cada evidencia. Sem isso, comparar duas
+// rodadas exige diff do payload inteiro para descobrir qual prompt produziu o que.
+const PROMPT_VERSION = "v5";
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"];
 const SCENARIOS = {
@@ -40,6 +44,8 @@ function parseArguments() {
     model: getValue("--model", MODELS[0]),
     limit: Number(getValue("--limit", "0")) || 0,
     tone: getValue("--tom", "tranquila"),
+    matriz: argumentsList.includes("--matriz"),
+    compararPrompt: argumentsList.includes("--comparar-prompt"),
   };
 }
 
@@ -54,8 +60,10 @@ function buildSystemPrompt({ level, scenario, tone }) {
     `Objetivo da conversa: ${scenario.objective}. Cenario: ${scenario.context}`,
     toneRule,
     "Regras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.",
-    'Onde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque ("do a check-in" em vez de "check in", "I have 25 years", "I am with hunger"), falso cognato ("pretend", "actually", "doubt"), estrutura ("people is", pergunta sem auxiliar) ou uso que soa rispido no contexto ("I want a coffee" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao ("Coffee.", "Two coffees, please.") nao e erro: nao corrija.',
+    'Onde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque ("do a check-in" em vez de "check in", "I have 25 years", "I am with hunger"), falso cognato ("pretend", "actually", "doubt"), estrutura ("people is", pergunta sem auxiliar, "no?" em vez de question tag) ou uso que soa rispido no contexto ("I want a coffee" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao ("Coffee.", "Two coffees, please.") nao e erro: nao corrija.',
+    "PRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.",
     "Cada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.",
+    "explanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.",
     "Em next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.",
     "Responda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala.",
   ].join("\n");
@@ -84,14 +92,23 @@ function getEvidenceDir(model) {
   return path.join(activeDir, specs[0], "evidence", model.replace(/[/\\:]/g, "_"));
 }
 
-function buildPayload(record, schema, model, tone) {
+// `grupo` separa rodadas com propositos diferentes dentro da mesma SPEC (a matriz de
+// personalidade e a comparacao de prompt), para o grader poder medi-las isoladamente.
+function getGroupDir(model, grupo) {
+  const base = getEvidenceDir(model);
+  return grupo ? path.join(base, grupo) : base;
+}
+
+// O nivel e dimensao de execucao na matriz: a mesma fala roda em nivel 1 e nivel 4.
+// Por isso ele entra como parametro e nao sai do `nivel_esperado` do dataset.
+function buildPayload(record, schema, model, tone, level = record.nivel_esperado) {
   const scenario = SCENARIOS[record.contexto];
   return {
     model,
     messages: [
       {
         role: "system",
-        content: buildSystemPrompt({ level: record.nivel_esperado, scenario, tone }),
+        content: buildSystemPrompt({ level, scenario, tone }),
       },
       { role: "user", content: record.aluno },
     ],
@@ -138,11 +155,15 @@ function saveFailure(evidenceDir, record, model, tone, payload, result) {
   return failurePath;
 }
 
-function saveSuccess(filePath, record, model, tone, payload, result) {
+function saveSuccess(filePath, record, model, tone, payload, result, level) {
   const evidence = {
     id: record.id,
     modelo: model,
     tom: tone,
+    // O nivel EFETIVO da chamada. Na matriz ele difere do `nivel_esperado` do dataset, e
+    // o grader precisa dele para medir comprimento contra o nivel certo.
+    nivel: level ?? record.nivel_esperado,
+    prompt_version: PROMPT_VERSION,
     executado_em: new Date().toISOString(),
     payload,
     resposta: result.data,
@@ -212,10 +233,12 @@ async function throttleByTokenBudget(limits) {
   await wait(ESPERA_MINIMA);
 }
 
-async function processRecord({ record, schema, model, tone, apiKey, evidenceDir }) {
-  const filePath = path.join(evidenceDir, `${record.id}.json`);
+async function processRecord({ record, schema, model, tone, apiKey, evidenceDir, level, nome }) {
+  const nivelEfetivo = level ?? record.nivel_esperado;
+  const arquivo = nome ?? record.id;
+  const filePath = path.join(evidenceDir, `${arquivo}.json`);
   if (fs.existsSync(filePath)) return { status: "skipped" };
-  const payload = buildPayload(record, schema, model, tone);
+  const payload = buildPayload(record, schema, model, tone, nivelEfetivo);
 
   let result;
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa += 1) {
@@ -233,19 +256,122 @@ async function processRecord({ record, schema, model, tone, apiKey, evidenceDir 
   if (result.error) {
     const failurePath = saveFailure(evidenceDir, record, model, tone, payload, result);
     console.log(
-      `FALHA ${record.id}: ${result.error} · salva em ${path.relative(PROJECT_ROOT, failurePath)}`,
+      `FALHA ${arquivo}: ${result.error} · salva em ${path.relative(PROJECT_ROOT, failurePath)}`,
     );
     // Rate limit nao aborta mais a rodada: com backoff e retomada, insistir no proximo
     // registro custa menos que reiniciar tudo. Erro de contrato, sim, merece parar.
     return { status: "failed", stop: result.error !== "rate_limit" };
   }
 
-  saveSuccess(filePath, record, model, tone, payload, result);
+  saveSuccess(filePath, record, model, tone, payload, result, nivelEfetivo);
   console.log(
-    `ok ${record.id}${result.limits.remainingTokens ? ` · tokens restantes: ${result.limits.remainingTokens}` : ""}`,
+    `ok ${arquivo}${result.limits.remainingTokens ? ` · tokens restantes: ${result.limits.remainingTokens}` : ""}`,
   );
   await throttleByTokenBudget(result.limits);
   return { status: "saved" };
+}
+
+function loadMatriz() {
+  return JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+}
+
+// Uma celula por (fala, nivel, tom). O nome do arquivo carrega os tres eixos para o
+// grader poder agrupar as celulas da mesma fala sem abrir todos os arquivos.
+function planejarMatriz(matriz, dataset) {
+  const porId = new Map(dataset.map((r) => [r.id, r]));
+  const celulas = [];
+  for (const fala of matriz.falas) {
+    const record = porId.get(fala.id);
+    if (!record) throw new Error(`matriz: '${fala.id}' nao existe no dataset`);
+    for (const nivel of matriz.niveis) {
+      for (const tom of matriz.tons) {
+        celulas.push({ record, level: nivel, tone: tom, nome: `${fala.id}-n${nivel}-${tom}` });
+      }
+    }
+  }
+  return celulas;
+}
+
+async function runMatriz(schema, dataset, options) {
+  const matriz = loadMatriz();
+  const celulas = planejarMatriz(matriz, dataset);
+  const evidenceDir = getGroupDir(options.model, "matriz");
+
+  if (options.dryRun) {
+    console.log("DRY RUN — nenhuma chamada de API, nenhuma cota gasta");
+    console.log(
+      `matriz: ${matriz.falas.length} falas × ${matriz.niveis.length} niveis × ${matriz.tons.length} tons = ${celulas.length} celulas`,
+    );
+    for (const c of celulas) buildPayload(c.record, schema, options.model, c.tone, c.level);
+    console.log(`payloads montados: ${celulas.length} · prompt ${PROMPT_VERSION}`);
+    console.log("\ndry: ok");
+    return;
+  }
+
+  const apiKey = requireApiKey();
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  const totals = { saved: 0, skipped: 0, failed: 0 };
+  for (const c of celulas) {
+    const result = await processRecord({
+      record: c.record,
+      schema,
+      model: options.model,
+      tone: c.tone,
+      level: c.level,
+      nome: c.nome,
+      apiKey,
+      evidenceDir,
+    });
+    totals[result.status] += 1;
+    if (result.stop) break;
+  }
+  console.log(
+    `\nmatriz: ${totals.saved} gravados · ${totals.skipped} pulados · ${totals.failed} falhas`,
+  );
+  console.log(`evidencias em: ${path.relative(PROJECT_ROOT, evidenceDir)}`);
+}
+
+async function runCompararPrompt(schema, dataset, options) {
+  const matriz = loadMatriz();
+  const porId = new Map(dataset.map((r) => [r.id, r]));
+  const alvos = matriz.comparacao.falas.map((f) => {
+    const record = porId.get(f.id);
+    if (!record) throw new Error(`comparacao: '${f.id}' nao existe no dataset`);
+    return record;
+  });
+  const evidenceDir = getGroupDir(options.model, `prompt-${PROMPT_VERSION}`);
+
+  if (options.dryRun) {
+    console.log("DRY RUN — nenhuma chamada de API, nenhuma cota gasta");
+    console.log(
+      `comparacao: ${alvos.length} falas que falharam com o v4, nas MESMAS condicoes (nivel do dataset, tom tranquila)`,
+    );
+    for (const r of alvos) buildPayload(r, schema, options.model, "tranquila");
+    console.log(`payloads montados: ${alvos.length} · prompt ${PROMPT_VERSION}`);
+    console.log("\ndry: ok");
+    return;
+  }
+
+  const apiKey = requireApiKey();
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  const totals = { saved: 0, skipped: 0, failed: 0 };
+  for (const record of alvos) {
+    // Tom e nivel iguais aos do v4: so o prompt muda, senao a comparacao nao isola nada.
+    const result = await processRecord({
+      record,
+      schema,
+      model: options.model,
+      tone: "tranquila",
+      apiKey,
+      evidenceDir,
+    });
+    totals[result.status] += 1;
+    if (result.stop) break;
+  }
+  console.log(
+    `\ncomparacao: ${totals.saved} gravados · ${totals.skipped} pulados · ${totals.failed} falhas`,
+  );
+  console.log(`evidencias em: ${path.relative(PROJECT_ROOT, evidenceDir)}`);
 }
 
 async function runRequests(records, schema, options) {
@@ -268,6 +394,8 @@ async function main() {
   const options = parseArguments();
   const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
   const dataset = loadDataset();
+  if (options.matriz) return runMatriz(schema, dataset, options);
+  if (options.compararPrompt) return runCompararPrompt(schema, dataset, options);
   const records = options.limit ? dataset.slice(0, options.limit) : dataset;
   if (options.dryRun) printDryRun(records, schema, options.model, options.tone);
   else await runRequests(records, schema, options);

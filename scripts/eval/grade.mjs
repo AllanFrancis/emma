@@ -328,6 +328,105 @@ function buildSelfTestCases() {
   ];
 }
 
+// Casos da matriz: um comparador que nunca acusa nada passa em qualquer rodada e nao
+// protege nada. Estes casos provam que ele acusa o que deve e SILENCIA no que e legitimo —
+// em particular, correcao diferente entre NIVEIS e adaptacao correta, nao violacao.
+function buildMatrizTestCases() {
+  const celula = (nivel, tom, turn) => ({ nivel, tom, turn });
+  const comCorrecao = (over = {}) => createFixture(over);
+  const semCorrecao = (reply) =>
+    createFixture({ corrections: [], next_action: "reply", reply_en: reply });
+
+  return [
+    {
+      name: "mesma correcao nos dois tons, falas diferentes",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Nice! Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "Got it. Which size?" })),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "tom direto corrige DIFERENTE — viola invariancia",
+      celulas: [
+        celula(1, "tranquila", comCorrecao()),
+        celula(
+          1,
+          "direta",
+          comCorrecao({
+            corrections: [createCorrection({ suggested: "Could I have a coffee" })],
+            reply_en: "Which size?",
+          }),
+        ),
+      ],
+      invariancia: 1,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "tom direto corrige MAIS — viola teto e invariancia",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Nice! Small or large?" })),
+        celula(
+          1,
+          "direta",
+          comCorrecao({
+            corrections: [createCorrection(), createCorrection({ category: "grammar" })],
+            reply_en: "Size?",
+          }),
+        ),
+      ],
+      invariancia: 1,
+      diferenca: 0,
+      teto: 1,
+    },
+    {
+      name: "reply_en identico entre tons — personalidade decorativa",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "Small or large?" })),
+      ],
+      invariancia: 0,
+      diferenca: 1,
+      teto: 0,
+    },
+    {
+      name: "identico so em caixa e espaco ainda e identico",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "  SMALL OR   LARGE? " })),
+      ],
+      invariancia: 0,
+      diferenca: 1,
+      teto: 0,
+    },
+    {
+      name: "correcao diferente entre NIVEIS e legitima, nao violacao",
+      celulas: [
+        celula(1, "tranquila", semCorrecao("Nice! Small or large?")),
+        celula(1, "direta", semCorrecao("Got it. Which size?")),
+        celula(4, "tranquila", comCorrecao({ reply_en: "Sure. What size would you like?" })),
+        celula(4, "direta", comCorrecao({ reply_en: "Which size?" })),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "controle em ambos os tons, sem correcao nenhuma",
+      celulas: [
+        celula(4, "tranquila", semCorrecao("That sounds great. What did you do?")),
+        celula(4, "direta", semCorrecao("Nice. And what did you do?")),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+  ];
+}
+
 function runSelfTest() {
   const cases = buildSelfTestCases();
   let failures = 0;
@@ -341,8 +440,25 @@ function runSelfTest() {
       );
     }
   }
+
+  const matrizCases = buildMatrizTestCases();
+  for (const c of matrizCases) {
+    const obtido = {
+      invariancia: violacoesDeInvariancia(c.celulas).length,
+      diferenca: violacoesDeDiferenca(c.celulas).length,
+      teto: violacoesDeTeto(c.celulas).length,
+    };
+    for (const chave of ["invariancia", "diferenca", "teto"]) {
+      if (obtido[chave] === c[chave]) continue;
+      failures += 1;
+      console.log(
+        `FALHA matriz · ${c.name} · ${chave}: esperado ${c[chave]} violacao(oes), obtido ${obtido[chave]}`,
+      );
+    }
+  }
+
   console.log(
-    `\nself-test: ${cases.length} casos · ${CHECKS.length} checagens · ${failures} falha(s)`,
+    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz · ${CHECKS.length} checagens · ${failures} falha(s)`,
   );
   if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
   process.exit(failures > 0 ? 1 : 0);
@@ -357,7 +473,19 @@ function findEvidenceTargets() {
     if (!fs.existsSync(evidenceDir)) continue;
     for (const model of fs.readdirSync(evidenceDir).filter((name) => !name.startsWith("_"))) {
       const modelDir = path.join(evidenceDir, model);
-      if (fs.statSync(modelDir).isDirectory()) targets.push({ model, modelDir });
+      if (!fs.statSync(modelDir).isDirectory()) continue;
+      // Uma SPEC pode ter rodadas com propositos diferentes (a matriz de personalidade e a
+      // comparacao de prompt). Cada subpasta do modelo e um alvo proprio, para as medidas
+      // nao se misturarem numa media que nao significa nada.
+      const entradas = fs.readdirSync(modelDir).filter((name) => !name.startsWith("_"));
+      const temJsonSolto = entradas.some((name) => name.endsWith(".json"));
+      const subgrupos = entradas.filter((name) =>
+        fs.statSync(path.join(modelDir, name)).isDirectory(),
+      );
+      if (temJsonSolto) targets.push({ model, modelDir });
+      for (const grupo of subgrupos) {
+        targets.push({ model: `${model}/${grupo}`, modelDir: path.join(modelDir, grupo) });
+      }
     }
   }
   return targets;
@@ -373,13 +501,23 @@ function extractTurn(rawEvidence) {
   }
 }
 
+// Na matriz o nivel e dimensao de execucao: a mesma fala roda em nivel 1 e 4. Medir
+// comprimento (C8) contra o `nivel_esperado` do dataset daria o resultado errado nas duas
+// celulas, entao o nivel gravado na evidencia tem precedencia.
+function recordEfetivo(record, rawEvidence) {
+  const nivel = rawEvidence?.nivel;
+  if (!Number.isInteger(nivel) || nivel === record.nivel_esperado) return record;
+  return { ...record, nivel_esperado: nivel };
+}
+
 function gradeModel(target, dataset) {
   const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
   const counts = {};
   let unreadable = 0;
   for (const file of files) {
     const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
-    const record = dataset.get(rawEvidence.id);
+    const base = dataset.get(rawEvidence.id);
+    const record = base ? recordEfetivo(base, rawEvidence) : base;
     const turn = extractTurn(rawEvidence);
     if (!turn || !record) {
       unreadable += 1;
@@ -468,7 +606,8 @@ function assertContract() {
 
     for (const file of files) {
       const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
-      const record = dataset.get(rawEvidence.id);
+      const base = dataset.get(rawEvidence.id);
+      const record = base ? recordEfetivo(base, rawEvidence) : base;
       const turn = extractTurn(rawEvidence);
       if (!record) {
         semRegistro += 1;
@@ -531,6 +670,270 @@ function assertContract() {
   process.exit(problemas > 0 ? 1 : 0);
 }
 
-if (process.argv.includes("--self-test")) runSelfTest();
-else if (process.argv.includes("--assert-contract")) assertContract();
+// ─────────────────────────── matriz de personalidade ───────────────────────────
+// A pergunta da SPEC-20260916-1652 nao e "quao bom foi o turno", e "o que mudou e o que
+// NAO mudou quando o tom e o nivel mudaram". Isso exige comparar celulas entre si, e nao
+// agregar tudo numa media — media de 4 celulas esconde exatamente o que se quer medir.
+
+const MATRIZ_PATH = path.join(CURRENT_DIR, "matriz.json");
+
+// Campos que a personalidade NAO pode tocar. Se qualquer um diverge entre tons, o produto
+// tem duas pedagogias e nao duas personalidades.
+const CAMPOS_PROTEGIDOS = ["suggested", "category"];
+
+function carregarCelulas() {
+  const alvos = findEvidenceTargets().filter((t) => t.model.endsWith("/matriz"));
+  const porFala = new Map();
+  for (const alvo of alvos) {
+    for (const file of fs.readdirSync(alvo.modelDir).filter((f) => f.endsWith(".json"))) {
+      const ev = JSON.parse(fs.readFileSync(path.join(alvo.modelDir, file), "utf8"));
+      const turn = extractTurn(ev);
+      if (!turn) continue;
+      if (!porFala.has(ev.id)) porFala.set(ev.id, []);
+      porFala.get(ev.id).push({ nivel: ev.nivel, tom: ev.tom, turn });
+    }
+  }
+  return porFala;
+}
+
+function assinaturaPedagogica(turn) {
+  const corr = Array.isArray(turn.corrections) ? turn.corrections : [];
+  return JSON.stringify({
+    itens: corr.map((c) => CAMPOS_PROTEGIDOS.map((k) => String(c?.[k] ?? "")).join("|")).sort(),
+    focus: String(turn.focus ?? ""),
+  });
+}
+
+function normalizarTexto(t) {
+  return String(t ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function exigirCelulas(porFala) {
+  if (porFala.size === 0) {
+    console.log("ERRO  nenhuma celula da matriz gravada — a rodada ainda nao aconteceu.");
+    console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --matriz");
+    process.exit(1);
+  }
+}
+
+function assertCompleto() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const esperadas = matriz.niveis.length * matriz.tons.length;
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let problemas = 0;
+  for (const fala of matriz.falas) {
+    const celulas = porFala.get(fala.id) ?? [];
+    const chaves = new Set(celulas.map((c) => `n${c.nivel}-${c.tom}`));
+    const faltando = [];
+    for (const n of matriz.niveis) {
+      for (const t of matriz.tons) if (!chaves.has(`n${n}-${t}`)) faltando.push(`n${n}-${t}`);
+    }
+    if (faltando.length > 0) {
+      console.log(
+        `ERRO  ${fala.id}: ${chaves.size}/${esperadas} celulas — falta ${faltando.join(", ")}`,
+      );
+      problemas += 1;
+    }
+  }
+  console.log(
+    `\nassert-completo: ${matriz.falas.length} falas × ${esperadas} celulas · ${problemas} incompleta(s)`,
+  );
+  process.exit(problemas > 0 ? 1 : 0);
+}
+
+// A invariancia e POR NIVEL: nivel diferente pode legitimamente mudar o que se corrige
+// (um erro sutil nao vale a pena para quem esta comecando). O que nao pode mudar e a
+// correcao entre TONS no mesmo nivel. Comparar as 4 celulas de uma vez confundiria as
+// duas coisas e acusaria como violacao o que e adaptacao correta ao nivel.
+function agruparPorNivel(celulas) {
+  const porNivel = new Map();
+  for (const c of celulas) {
+    if (!porNivel.has(c.nivel)) porNivel.set(c.nivel, []);
+    porNivel.get(c.nivel).push(c);
+  }
+  return porNivel;
+}
+
+// As tres funcoes abaixo sao PURAS: recebem celulas e devolvem violacoes, sem ler disco
+// nem sair do processo. E o que permite testa-las no self-test sem gastar API.
+function violacoesDeInvariancia(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    const assinaturas = new Map();
+    for (const c of grupo) assinaturas.set(c.tom, assinaturaPedagogica(c.turn));
+    if (new Set(assinaturas.values()).size > 1) out.push({ nivel, grupo });
+  }
+  return out;
+}
+
+function violacoesDeDiferenca(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    if (grupo.length < 2) continue;
+    const falas = grupo.map((c) => normalizarTexto(c.turn.reply_en));
+    if (new Set(falas).size === 1) out.push({ nivel, grupo });
+  }
+  return out;
+}
+
+function violacoesDeTeto(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    const contagens = grupo.map((c) => ({ tom: c.tom, n: countCorrections(c.turn) }));
+    if (new Set(contagens.map((x) => x.n)).size > 1) out.push({ nivel, contagens });
+  }
+  return out;
+}
+
+function assertInvariancia() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let violacoes = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeInvariancia(celulas)) {
+      violacoes += 1;
+      console.log(`ERRO  ${id} nivel ${v.nivel}: a correcao MUDOU entre tons`);
+      for (const c of v.grupo) {
+        const corr = Array.isArray(c.turn.corrections) ? c.turn.corrections : [];
+        const itens =
+          corr.map((x) => `"${x.original}" -> "${x.suggested}" (${x.category})`).join(" · ") ||
+          "(nenhuma)";
+        console.log(`        ${c.tom}: ${corr.length} correcao(oes) — ${itens}`);
+        console.log(`          focus: "${c.turn.focus ?? ""}"`);
+      }
+    }
+  }
+  console.log(
+    `\nassert-invariancia: ${porFala.size} falas · ${violacoes} violacao(oes) da verdade pedagogica`,
+  );
+  process.exit(violacoes > 0 ? 1 : 0);
+}
+
+function assertDiferenca() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let iguais = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeDiferenca(celulas)) {
+      iguais += 1;
+      console.log(
+        `ERRO  ${id} nivel ${v.nivel}: reply_en IDENTICO entre tons — personalidade decorativa`,
+      );
+      console.log(`        "${v.grupo[0].turn.reply_en}"`);
+    }
+  }
+  console.log(`\nassert-diferenca: ${porFala.size} falas · ${iguais} sem diferenca de estilo`);
+  process.exit(iguais > 0 ? 1 : 0);
+}
+
+function assertTeto() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let desequilibrios = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeTeto(celulas)) {
+      desequilibrios += 1;
+      console.log(
+        `ERRO  ${id} nivel ${v.nivel}: quantidade de correcao difere por tom — ${v.contagens.map((x) => `${x.tom}=${x.n}`).join(" · ")}`,
+      );
+    }
+  }
+  console.log(
+    `\nassert-teto: ${porFala.size} falas · ${desequilibrios} caso(s) em que o tom mudou QUANTO se corrige`,
+  );
+  process.exit(desequilibrios > 0 ? 1 : 0);
+}
+
+// Comparacao cirurgica v4 -> v5 nas 7 falas que falharam. A evidencia do v4 esta
+// arquivada; a do v5 foi gravada no grupo prompt-v5 desta SPEC.
+function compararPrompt() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const dataset = loadDataset();
+  const v4Dir = path.join(
+    PROJECT_ROOT,
+    "docs",
+    "archive",
+    "SPEC-20260916-1450-contrato-do-turno-v2",
+    "evidence",
+    "openai_gpt-oss-20b",
+  );
+  const alvoV5 = findEvidenceTargets().find((t) => t.model.includes("/prompt-"));
+  if (!alvoV5) {
+    console.log("ERRO  nenhuma evidencia do prompt novo — a comparacao ainda nao aconteceu.");
+    console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --comparar-prompt");
+    process.exit(1);
+  }
+
+  let ausentes = 0;
+  const linhas = [];
+  for (const alvo of matriz.comparacao.falas) {
+    const p4 = path.join(v4Dir, `${alvo.id}.json`);
+    const p5 = path.join(alvoV5.modelDir, `${alvo.id}.json`);
+    if (!fs.existsSync(p4) || !fs.existsSync(p5)) {
+      console.log(`ERRO  ${alvo.id}: falta evidencia (${!fs.existsSync(p4) ? "v4" : "v5"})`);
+      ausentes += 1;
+      continue;
+    }
+    const e4 = JSON.parse(fs.readFileSync(p4, "utf8"));
+    const e5 = JSON.parse(fs.readFileSync(p5, "utf8"));
+    const t4 = extractTurn(e4);
+    const t5 = extractTurn(e5);
+    const base = dataset.get(alvo.id);
+    const r4 = evaluateTurn(t4, recordEfetivo(base, e4));
+    const r5 = evaluateTurn(t5, recordEfetivo(base, e5));
+    linhas.push({ alvo, base, t4, t5, r4, r5 });
+  }
+
+  for (const l of linhas) {
+    console.log(`\n===== ${l.alvo.id} · falha no v4: ${l.alvo.falha_v4} =====`);
+    console.log(`aluno: "${l.base.aluno}"`);
+    console.log(`deve_corrigir: ${JSON.stringify(l.base.deve_corrigir)}`);
+    for (const [rotulo, turn] of [
+      ["v4", l.t4],
+      ["v5", l.t5],
+    ]) {
+      const corr = Array.isArray(turn.corrections) ? turn.corrections : [];
+      console.log(`  [${rotulo}] ${corr.length} correcao(oes)`);
+      for (const c of corr) {
+        console.log(`       "${c.original}" -> "${c.suggested}" (${c.category})`);
+        console.log(`       ${c.explanation_pt}`);
+      }
+      if (corr.length === 0) console.log(`       suggestion_en: "${turn.suggestion_en}"`);
+    }
+    const mudou = ["C4", "C5", "C11", "C12", "C13"]
+      .filter((k) => l.r4[k] !== l.r5[k])
+      .map((k) => `${k}: ${l.r4[k]} -> ${l.r5[k]}`);
+    console.log(`  delta: ${mudou.length ? mudou.join(" · ") : "nenhuma checagem mudou"}`);
+  }
+
+  const melhorou = linhas.filter((l) =>
+    ["C4", "C5", "C13"].some((k) => l.r4[k] === false && l.r5[k] === true),
+  ).length;
+  const piorou = linhas.filter((l) =>
+    ["C4", "C5", "C13"].some((k) => l.r4[k] === true && l.r5[k] === false),
+  ).length;
+  console.log(
+    `\ncomparar-prompt: ${linhas.length} falas · ${melhorou} melhoraram · ${piorou} pioraram · ${ausentes} sem evidencia`,
+  );
+  console.log("O VEREDITO E HUMANO: estes numeros dizem o que mudou, nao se a mudanca vale.");
+  process.exit(ausentes > 0 ? 1 : 0);
+}
+
+const argv = process.argv;
+if (argv.includes("--self-test")) runSelfTest();
+else if (argv.includes("--matriz")) {
+  if (argv.includes("--assert-completo")) assertCompleto();
+  else if (argv.includes("--assert-invariancia")) assertInvariancia();
+  else if (argv.includes("--assert-diferenca")) assertDiferenca();
+  else if (argv.includes("--assert-teto")) assertTeto();
+  else {
+    console.log("uso: grade.mjs --matriz --assert-{completo|invariancia|diferenca|teto}");
+    process.exit(2);
+  }
+} else if (argv.includes("--comparar-prompt")) compararPrompt();
+else if (argv.includes("--assert-contract")) assertContract();
 else printTable();

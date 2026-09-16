@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Validacao estrutural do dataset e do schema do turno. Nao gasta chamada de API.
-//   node scripts/eval/validate.mjs            -> valida dataset.jsonl
-//   node scripts/eval/validate.mjs --schema   -> valida turn-schema.json
-//   node scripts/eval/validate.mjs --all      -> ambos
+//   node scripts/eval/validate.mjs             -> valida dataset.jsonl
+//   node scripts/eval/validate.mjs --schema    -> valida turn-schema.json
+//   node scripts/eval/validate.mjs --matriz    -> valida matriz.json (subconjunto + eixos)
+//   node scripts/eval/validate.mjs --self-test -> prova que o validador recusa o contrato invalido
+//   node scripts/eval/validate.mjs --all       -> dataset + schema + matriz
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +13,7 @@ import { validateTurn, validateEvidence } from "./turn-validator.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATASET = path.join(HERE, "dataset.jsonl");
 const SCHEMA = path.join(HERE, "turn-schema.json");
+const MATRIZ = path.join(HERE, "matriz.json");
 
 const CONTEXTOS = new Set(["cafe", "hotel", "small-talk", "livre"]);
 const TIPOS_ERRO = new Set([
@@ -298,6 +301,97 @@ function validarSchema() {
   );
 }
 
+// A matriz e o subconjunto declarado da eval de personalidade. Validar offline evita
+// descobrir na 40a chamada que um id nao existe ou que falta caso de controle — o que
+// tornaria a rodada inteira inutil sob um teto de TOKENS por minuto.
+function validarMatriz() {
+  let m;
+  try {
+    m = JSON.parse(fs.readFileSync(MATRIZ, "utf8"));
+  } catch (e) {
+    erros.push(`matriz.json: JSON invalido — ${e.message}`);
+    return;
+  }
+
+  const dataset = new Map(
+    fs
+      .readFileSync(DATASET, "utf8")
+      .split(/\r?\n/)
+      .filter((l) => l.trim() !== "")
+      .map((l) => JSON.parse(l))
+      .map((r) => [r.id, r]),
+  );
+
+  if (!Array.isArray(m.niveis) || m.niveis.length < 2) {
+    erros.push(`matriz.json: 'niveis' precisa de ao menos 2 valores — a matriz compara niveis`);
+  } else {
+    for (const n of m.niveis) {
+      if (!Number.isInteger(n) || n < 1 || n > 5)
+        erros.push(`matriz.json: nivel '${n}' fora de 1..5`);
+    }
+  }
+
+  if (!Array.isArray(m.tons) || m.tons.length < 2) {
+    erros.push(`matriz.json: 'tons' precisa de ao menos 2 valores — a matriz compara tons`);
+  }
+
+  if (!Array.isArray(m.falas) || m.falas.length === 0) {
+    erros.push(`matriz.json: 'falas' vazio`);
+    return;
+  }
+
+  const vistos = new Set();
+  const porContexto = {};
+  let controles = 0;
+
+  for (const f of m.falas) {
+    if (typeof f?.id !== "string") {
+      erros.push(`matriz.json: fala sem 'id'`);
+      continue;
+    }
+    if (vistos.has(f.id)) erros.push(`matriz.json: id duplicado '${f.id}'`);
+    vistos.add(f.id);
+
+    // Motivo obrigatorio: subconjunto sem justificativa e amostra escolhida por conveniencia.
+    if (typeof f.motivo !== "string" || f.motivo.trim() === "") {
+      erros.push(`matriz.json: '${f.id}' sem 'motivo' — subconjunto exige justificativa`);
+    }
+
+    const r = dataset.get(f.id);
+    if (!r) {
+      erros.push(`matriz.json: '${f.id}' nao existe em dataset.jsonl`);
+      continue;
+    }
+    porContexto[r.contexto] = (porContexto[r.contexto] || 0) + 1;
+    if (r.tipo_erro === "nenhum") controles += 1;
+  }
+
+  for (const ctx of CONTEXTOS) {
+    if (!porContexto[ctx]) erros.push(`matriz.json: nenhuma fala no contexto '${ctx}'`);
+  }
+
+  // Sem controle, a matriz nao mede o principal modo de falha: o tom direto
+  // inventando correcao onde nao havia nada a corrigir.
+  const pct = (controles / m.falas.length) * 100;
+  if (controles === 0) {
+    erros.push(
+      `matriz.json: nenhum caso de controle — sem eles a matriz nao mede sobre-correcao por tom`,
+    );
+  } else if (pct < 20) {
+    avisos.push(`matriz.json: apenas ${pct.toFixed(0)}% de casos de controle (abaixo de 20%)`);
+  }
+
+  const celulas = m.falas.length * (m.niveis?.length ?? 0) * (m.tons?.length ?? 0);
+  console.log(
+    `matriz: ${m.falas.length} falas × ${m.niveis?.length} niveis × ${m.tons?.length} tons = ${celulas} celulas · ${controles} controles (${pct.toFixed(0)}%)`,
+  );
+  console.log(
+    `  por contexto: ${Object.entries(porContexto)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(" · ")}`,
+  );
+}
+
 function conferirEnum(propriedade, esperado, nome) {
   if (!Array.isArray(propriedade?.enum)) {
     erros.push(`turn-schema.json: '${nome}' deve declarar enum`);
@@ -428,12 +522,15 @@ function autoTeste() {
 
 const args = process.argv.slice(2);
 const soSchema = args.includes("--schema");
+const soMatriz = args.includes("--matriz");
 const tudo = args.includes("--all");
+const alvoExplicito = soSchema || soMatriz;
 
 if (args.includes("--self-test")) autoTeste();
 
 if (soSchema || tudo) validarSchema();
-if (!soSchema || tudo) validarDataset();
+if (soMatriz || tudo) validarMatriz();
+if (!alvoExplicito || tudo) validarDataset();
 
 console.log("");
 for (const a of avisos) console.log(`AVISO  ${a}`);
