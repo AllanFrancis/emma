@@ -301,9 +301,7 @@ function buildSelfTestCases() {
     {
       name: "explicacao em ingles reprova",
       turn: createFixture({
-        corrections: [
-          createCorrection({ explanation_pt: "Use 'am' instead of 'have' for age." }),
-        ],
+        corrections: [createCorrection({ explanation_pt: "Use 'am' instead of 'have' for age." })],
       }),
       record: errorRecord,
       expected: { C13: false },
