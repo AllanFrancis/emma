@@ -441,6 +441,27 @@ function runSelfTest() {
     }
   }
 
+  // O gate de tamanho valida o DESENHO. Um numero unico para todos os grupos deixaria
+  // passar matriz pela metade OU reprovaria a comparacao controlada para sempre.
+  const tamanhoCases = [
+    { model: "m/matriz", n: 48, ok: true, nome: "matriz completa" },
+    { model: "m/matriz", n: 47, ok: false, nome: "matriz com uma celula faltando" },
+    { model: "m/matriz", n: 49, ok: false, nome: "matriz com celula a mais que o previsto" },
+    { model: "m/prompt-v5", n: 7, ok: true, nome: "comparacao controlada completa" },
+    { model: "m/prompt-v5", n: 1, ok: false, nome: "comparacao controlada com 1 de 7" },
+    { model: "m/prompt-v5", n: 40, ok: false, nome: "comparacao controlada com turnos a mais" },
+    { model: "m", n: 45, ok: true, nome: "dataset acima do minimo" },
+    { model: "m", n: 39, ok: false, nome: "dataset abaixo do minimo" },
+  ];
+  for (const c of tamanhoCases) {
+    const obtido = conferirTamanho(c.model, c.n).ok;
+    if (obtido === c.ok) continue;
+    failures += 1;
+    console.log(
+      `FALHA tamanho · ${c.nome}: esperado ${c.ok ? "aceitar" : "recusar"}, obtido ${obtido ? "aceitou" : "recusou"}`,
+    );
+  }
+
   const matrizCases = buildMatrizTestCases();
   for (const c of matrizCases) {
     const obtido = {
@@ -458,7 +479,7 @@ function runSelfTest() {
   }
 
   console.log(
-    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz · ${CHECKS.length} checagens · ${failures} falha(s)`,
+    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho de desenho · ${CHECKS.length} checagens · ${failures} falha(s)`,
   );
   if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
   process.exit(failures > 0 ? 1 : 0);
@@ -587,6 +608,48 @@ function printTable() {
 // o gate diz a verdade sobre o que ainda nao foi medido.
 const MINIMO_TURNOS = 40;
 
+// Cada DESENHO experimental tem um tamanho proprio, e o gate valida o desenho — nao
+// aplica um numero unico a todos. Afrouxar para o menor deles deixaria passar uma matriz
+// pela metade; exigir o maior de todos reprovaria a comparacao controlada para sempre,
+// porque ela tem 7 falas POR DESENHO e nao por falta de execucao.
+function desenhoDoGrupo(model) {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  if (model.endsWith("/matriz")) {
+    const n = matriz.falas.length * matriz.niveis.length * matriz.tons.length;
+    return {
+      rotulo: `matriz ${matriz.falas.length}x${matriz.niveis.length}x${matriz.tons.length}`,
+      exigencia: "exata",
+      n,
+    };
+  }
+  if (/\/prompt-/.test(model)) {
+    return {
+      rotulo: "comparacao controlada",
+      exigencia: "exata",
+      n: matriz.comparacao.falas.length,
+    };
+  }
+  // Rodada do dataset inteiro: minimo, porque o dataset pode crescer sem invalidar nada.
+  return { rotulo: "dataset", exigencia: "minima", n: MINIMO_TURNOS };
+}
+
+function conferirTamanho(model, encontrados) {
+  const d = desenhoDoGrupo(model);
+  if (d.exigencia === "exata" && encontrados !== d.n) {
+    return {
+      ok: false,
+      nota: `${d.rotulo} exige EXATAMENTE ${d.n} turnos (encontrados ${encontrados}) — desenho ${encontrados < d.n ? "incompleto" : "com turnos a mais que o previsto"}`,
+    };
+  }
+  if (d.exigencia === "minima" && encontrados < d.n) {
+    return {
+      ok: false,
+      nota: `${d.rotulo} exige ao menos ${d.n} turnos (encontrados ${encontrados})`,
+    };
+  }
+  return { ok: true, nota: `${d.rotulo} · ${encontrados}/${d.n}` };
+}
+
 function assertContract() {
   const targets = findEvidenceTargets();
   if (targets.length === 0) {
@@ -634,15 +697,17 @@ function assertContract() {
       }
     }
 
+    const tamanho = conferirTamanho(target.model, files.length);
+
     const linha = [
-      `${target.model}: ${files.length} turnos`,
+      `${target.model}: ${tamanho.nota}`,
       `contrato invalido=${contratoInvalido}`,
       `sem evidencia=${semEvidencia}`,
       `falhas de contrato=${falhasDeContrato}`,
     ].join(" · ");
 
     const reprovou =
-      files.length < MINIMO_TURNOS ||
+      !tamanho.ok ||
       contratoInvalido > 0 ||
       semEvidencia > 0 ||
       falhasDeContrato > 0 ||
@@ -651,11 +716,6 @@ function assertContract() {
     if (falhasTransitorias > 0) {
       console.log(
         `      ${falhasTransitorias} falha(s) de rate limit ignorada(s) — transitoria, nao e falha de contrato`,
-      );
-    }
-    if (files.length < MINIMO_TURNOS) {
-      console.log(
-        `      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`,
       );
     }
     if (semRegistro > 0) {

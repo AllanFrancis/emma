@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 17:53
+**Última atualização:** 2026-09-16 18:14
 **Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
 **Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
 **Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
@@ -197,3 +197,51 @@ BUG NO MEU GATE do critério 7: `--assert-contract` exige ≥40 turnos POR GRUPO
 comparação tem 7 por desenho. Esse critério nunca passaria. Não corrigi agora por instrução
 explícita do usuário de não alterar código antes da análise final.
 ⎿ commit 0e870ef+dirty · 2 files changed, 12 insertions(+), 3 deletions(-)
+
+## 2026-09-16 18:14 — [decisão] Interacao tom-pedagogia rebaixada a HIPOTESE por determinacao do usuario; cafe-02 sao execucoes repetidas e nao independentes; livre-02 e candidata a regressao; gate do criterio 7 agora valida o desenho de cada grupo
+
+Correções de interpretação determinadas pelo usuário em 2026-09-16 18:12, sobre a entrada
+`[descoberta]` de 17:53. A entrada anterior não é editada (LOG é append-only); esta a corrige.
+
+1. REBAIXADO DE CONCLUSÃO A HIPÓTESE. Eu escrevi que "o tom no prompt está mexendo na pedagogia" e
+que "nenhuma versão de prompt resolve isso por instrução". Citação do usuário: "Não trate ainda
+como conclusão que 'o problema é o tom no prompt' ou que 'nenhuma versão de prompt resolve isso'.
+Os dados apontam fortemente para uma interação entre tom e comportamento pedagógico, mas por
+enquanto registre isso como hipótese sustentada pelos resultados, não como conclusão definitiva."
+Status correto: **HIPÓTESE sustentada pelos resultados** — há interação aparente entre tom e
+comportamento pedagógico (C5 75% em tranquila contra 94% em direta, com total de correções
+praticamente igual), e ela é relevante o suficiente para orientar a próxima SPEC, mas não está
+estabelecida.
+
+2. "INDEPENDENTES" ERA TERMO ERRADO. Chamei as 6 observações de `cafe-02` de independentes.
+Citação: "São execuções repetidas do mesmo modelo e do mesmo desenho experimental, sem `seed` e sem
+controle explícito de `temperature`. O padrão é relevante e merece destaque, mas não prova sozinho
+causalidade." Correto: são **execuções repetidas do mesmo modelo sob o mesmo desenho**, sem `seed` e
+sem `temperature` fixada. O padrão (4 em tranquila omitindo, 2 em direta corrigindo) merece
+destaque e não estabelece causalidade.
+
+3. C4 ESCLARECIDO E ACEITO pelo usuário: a queda de 94% para 69% NÃO é regressão do v5. A
+composição da matriz explica — `hotel-07` pesa 25% dos controles ali contra 6% no dataset de 45, e
+o v4 falhava a mesma fala.
+
+4. `livre-02 n1 tranquila` fica registrado como VIOLAÇÃO IMPORTANTE da decisão ativa
+DEC-20260916-0312 (não corrigir maiúscula, pontuação nem grafia, porque é fala transcrita), e
+APENAS COMO CANDIDATA A REGRESSÃO até haver comparação equivalente. A comparação disponível não é
+equivalente: o v5 rodou em nível 1 e o v4 em nível 2, e ocorreu em 1 de 4 células do v5.
+
+AÇÕES EXECUTADAS junto com esta correção:
+
+- Retry do 429 INTERROMPIDO (diretriz 7), para não consumir tentativas nem acumular registros de
+  falha transitória. Já havia 5 registros em `prompt-v5/_failures`; ficam preservados como
+  evidência do que aconteceu, e o gate os classifica como transitórios.
+- `cafe-08` entrou antes da interrupção, então a comparação está em 2 de 7: faltam `talk-06`,
+  `talk-10`, `hotel-05`, `hotel-07` e `hotel-10`. A retomada roda SOMENTE essas 5 — o runner resume
+  por existência de arquivo, então `cafe-02` e `cafe-08` não serão repetidas (diretriz 6).
+- GATE DO CRITÉRIO 7 CORRIGIDO (diretriz 5), sem afrouxar. `--assert-contract` passou a validar o
+  DESENHO de cada grupo: `matriz` exige EXATAMENTE falas×níveis×tons lido do `matriz.json` (48 hoje);
+  grupo de comparação exige EXATAMENTE `comparacao.falas.length` (7); rodada do dataset inteiro
+  segue com MÍNIMO de 40, porque o dataset pode crescer sem invalidar nada. A exigência "exata"
+  reprova nos DOIS sentidos — faltando célula e com célula a mais que o previsto — e 8 casos de
+  self-test guardam isso. Resultado: matriz 48/48 passa, comparação com 2 de 7 reprova nomeando
+  "desenho incompleto".
+⎿ commit 66a12df+dirty · 1 file changed, 68 insertions(+), 8 deletions(-)
