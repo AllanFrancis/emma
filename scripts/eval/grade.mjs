@@ -14,10 +14,16 @@ const TURN_SCHEMA = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
 const WORD_LIMIT_BY_LEVEL = { 1: 15, 2: 18, 3: 26, 4: 36, 5: 48 };
 const METALANGUAGE_PATTERN =
   /\b(grammar|grammatical|mistake|error|correction|conjugat|tense|verb form)\b/i;
+// A segunda metade de cada lista foi calibrada contra as 33 explicacoes reais da rodada
+// de 2026-09-16: explicacao de correcao e curta ("Use 'on' depois de 'depends'.") e cita
+// palavras em ingles entre aspas, entao os marcadores genericos de conversa nao bastam.
+// Cuidado deliberado: "use" fica FORA da lista inglesa, porque em portugues o imperativo
+// "Use" abre quase toda explicacao; e `\bverb\b` nao casa "verbo", `\bpast\b` nao casa
+// "passado".
 const PORTUGUESE_PATTERN =
-  /\b(que|nao|não|seu|sua|deseja|dizendo|diga|fazer|frase|mais|uma|para|com|responda|pergunte|agora|voce|você|isso|porque|quando|em vez de|do|da|dos|das|no|na|pedido|tamanho|conte|escolha|use o|repita)\b/gi;
+  /\b(que|nao|não|seu|sua|deseja|dizendo|diga|fazer|frase|mais|uma|para|com|responda|pergunte|agora|voce|você|isso|porque|quando|em vez de|do|da|dos|das|no|na|pedido|tamanho|conte|escolha|use o|repita|sem|antes|depois|como|deve|vir|verbo|pronome|sujeito|artigo|artigos|plural|singular|usamos|podemos|adicione|omitir|troque|coloque|soa|natural|forma|passado|presente)\b/gi;
 const ENGLISH_PATTERN =
-  /\b(the|your|you|verb|before|subject|word|order|sentence|answer|say|tell|ask|instead|question)\b/gi;
+  /\b(the|your|you|verb|before|subject|word|order|sentence|answer|say|tell|ask|instead|question|without|uncountable|countable|noun|article|continuous|started|continues|past|present)\b/gi;
 
 function isPortuguese(text) {
   if (typeof text !== "string" || text.trim() === "") return false;
@@ -115,6 +121,15 @@ const CHECKS = [
     name: "next_action coerente com o caso",
     criterion: "nao cobra repeticao de quem nao errou",
     check: (turn, record) => (record.tipo_erro !== "nenhum" ? null : turn.next_action !== "retry"),
+  },
+  {
+    id: "C13",
+    name: "explicacao da correcao em portugues",
+    criterion: "explica em portugues quando necessario — o campo se chama explanation_pt",
+    check: (turn) =>
+      countCorrections(turn) === 0 || !Array.isArray(turn.corrections)
+        ? null
+        : turn.corrections.every((c) => isPortuguese(c?.explanation_pt ?? "")),
   },
 ];
 
@@ -271,6 +286,46 @@ function buildSelfTestCases() {
       turn: createFixture({ corrections: [createCorrection({ original: "I WANT a coffee." })] }),
       record: errorRecord,
       expected: { C11: true },
+    },
+    // Os tres casos abaixo sao literais da rodada de 2026-09-16: explicacao curta em
+    // portugues que cita palavra inglesa entre aspas TEM de passar, e explicacao em
+    // ingles TEM de reprovar. Sem esse par, C13 vira ou peneira furada ou falso alarme.
+    {
+      name: "explicacao curta em portugues citando ingles",
+      turn: createFixture({
+        corrections: [createCorrection({ explanation_pt: "Use 'on' depois de 'depends'." })],
+      }),
+      record: errorRecord,
+      expected: { C13: true },
+    },
+    {
+      name: "explicacao em ingles reprova",
+      turn: createFixture({
+        corrections: [
+          createCorrection({ explanation_pt: "Use 'am' instead of 'have' for age." }),
+        ],
+      }),
+      record: errorRecord,
+      expected: { C13: false },
+    },
+    {
+      name: "explicacao em ingles com metalinguagem reprova",
+      turn: createFixture({
+        corrections: [
+          createCorrection({
+            explanation_pt:
+              "Use present perfect continuous for an action that started in the past.",
+          }),
+        ],
+      }),
+      record: errorRecord,
+      expected: { C13: false },
+    },
+    {
+      name: "sem correcao, C13 nao se aplica",
+      turn: createFixture({ corrections: [], next_action: "reply" }),
+      record: controlRecord,
+      expected: { C13: null },
     },
   ];
 }
