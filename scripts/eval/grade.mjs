@@ -867,6 +867,64 @@ function assertTeto() {
   process.exit(desequilibrios > 0 ? 1 : 0);
 }
 
+// As assercoes dizem se algo quebrou; elas nao dizem se os dois tons SOAM diferentes a
+// um leitor humano. Este relatorio existe para o criterio de leitura humana e para a
+// invariante "nunca afirmar ganho sem mostrar as saidas lado a lado".
+function relatorioMatriz() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const dataset = loadDataset();
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+
+  for (const fala of matriz.falas) {
+    const record = dataset.get(fala.id);
+    const celulas = porFala.get(fala.id) ?? [];
+    console.log(`\n${"=".repeat(78)}`);
+    console.log(`${fala.id} · ${record.tipo_erro} · aluno: "${record.aluno}"`);
+    console.log(`motivo da inclusao: ${fala.motivo}`);
+    if (record.deve_corrigir.length > 0) {
+      console.log(`deve_corrigir: ${JSON.stringify(record.deve_corrigir)}`);
+    }
+    if (record.nao_deve_corrigir.length > 0) {
+      console.log(`nao_deve_corrigir: ${JSON.stringify(record.nao_deve_corrigir)}`);
+    }
+
+    for (const nivel of matriz.niveis) {
+      const grupo = celulas.filter((c) => c.nivel === nivel);
+      console.log(`\n  --- nivel ${nivel} ---`);
+      // A correcao aparece UMA vez quando e igual nos dois tons: e o resultado esperado,
+      // e repetir esconderia a diferenca real, que esta na fala e na explicacao.
+      const assinaturas = new Set(grupo.map((c) => assinaturaPedagogica(c.turn)));
+      if (assinaturas.size === 1 && grupo.length > 0) {
+        const corr = grupo[0].turn.corrections ?? [];
+        console.log(
+          `  correcao (IGUAL nos dois tons): ${corr.length === 0 ? "nenhuma" : ""}`.trimEnd(),
+        );
+        for (const c of corr)
+          console.log(`    "${c.original}" -> "${c.suggested}" (${c.category})`);
+      } else {
+        console.log(`  correcao DIVERGIU entre tons:`);
+        for (const c of grupo) {
+          const corr = c.turn.corrections ?? [];
+          console.log(
+            `    ${c.tom}: ${corr.map((x) => `"${x.original}" -> "${x.suggested}"`).join(" · ") || "nenhuma"}`,
+          );
+        }
+      }
+      for (const c of grupo) {
+        console.log(`  [${c.tom}] ${c.turn.reply_en}`);
+        console.log(`           instrucao: ${c.turn.instruction_pt}`);
+        for (const x of c.turn.corrections ?? [])
+          console.log(`           expl: ${x.explanation_pt}`);
+        console.log(`           next_action: ${c.turn.next_action}`);
+      }
+    }
+  }
+  console.log(`\n${"=".repeat(78)}`);
+  console.log("ESTE RELATORIO NAO APROVA NADA. As assercoes dizem o que quebrou;");
+  console.log("se os dois tons soam de fato diferentes e julgamento humano.");
+}
+
 // Comparacao cirurgica v4 -> v5 nas 7 falas que falharam. A evidencia do v4 esta
 // arquivada; a do v5 foi gravada no grupo prompt-v5 desta SPEC.
 function compararPrompt() {
@@ -949,8 +1007,11 @@ else if (argv.includes("--matriz")) {
   else if (argv.includes("--assert-invariancia")) assertInvariancia();
   else if (argv.includes("--assert-diferenca")) assertDiferenca();
   else if (argv.includes("--assert-teto")) assertTeto();
+  else if (argv.includes("--relatorio")) relatorioMatriz();
   else {
-    console.log("uso: grade.mjs --matriz --assert-{completo|invariancia|diferenca|teto}");
+    console.log(
+      "uso: grade.mjs --matriz --assert-{completo|invariancia|diferenca|teto} | --relatorio",
+    );
     process.exit(2);
   }
 } else if (argv.includes("--comparar-prompt")) compararPrompt();
