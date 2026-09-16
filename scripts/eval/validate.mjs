@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateTurn } from "./turn-validator.mjs";
+import { validateTurn, validateEvidence } from "./turn-validator.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATASET = path.join(HERE, "dataset.jsonl");
@@ -35,6 +35,54 @@ const CAMPOS = [
 ];
 const MINIMO = 40;
 const TETO_CORRECOES = 3; // regra do contrato: no maximo 3 pontos por turno
+
+// Contrato do turno v2 — corrections[] estruturado (SPEC-20260916-1450).
+const CAMPOS_TURNO = [
+  "reply_en",
+  "reply_pt",
+  "instruction_pt",
+  "corrections",
+  "suggestion_en",
+  "suggestion_pt",
+  "words",
+  "focus",
+  "next_action",
+];
+const CAMPOS_CORRECAO = ["original", "suggested", "explanation_pt", "category"];
+const CATEGORIAS = [
+  "grammar",
+  "vocabulary",
+  "word_order",
+  "preposition",
+  "false_friend",
+  "register",
+];
+const NEXT_ACTIONS = ["reply", "retry", "continue_mission", "complete_mission"];
+
+// Fala de referencia do self-test; a evidencia das correcoes tem de sair daqui.
+const FALA_FIXTURE = "I want a coffee please";
+
+function fixtureTurno(overrides = {}) {
+  return {
+    reply_en: "Nice choice! Small or large?",
+    reply_pt: "Boa escolha! Pequeno ou grande?",
+    instruction_pt: "Agora diga o tamanho que voce quer.",
+    corrections: [
+      {
+        original: "I want a coffee",
+        suggested: "I'd like a coffee",
+        explanation_pt: "Num pedido, 'I'd like' soa mais natural do que 'I want'.",
+        category: "register",
+      },
+    ],
+    suggestion_en: "A small one, please.",
+    suggestion_pt: "Um pequeno, por favor.",
+    words: ["I'd like"],
+    focus: "pedidos com I'd like",
+    next_action: "retry",
+    ...overrides,
+  };
+}
 
 const erros = [];
 const avisos = [];
@@ -182,23 +230,13 @@ function validarSchema() {
 
   const props = Object.keys(sc.properties || {});
   const req = sc.required || [];
-  const ESPERADOS = [
-    "reply_en",
-    "reply_pt",
-    "instruction_pt",
-    "correction_pt",
-    "suggestion_en",
-    "suggestion_pt",
-    "words",
-    "focus",
-  ];
 
-  for (const campo of ESPERADOS) {
+  for (const campo of CAMPOS_TURNO) {
     if (!props.includes(campo)) erros.push(`turn-schema.json: falta a propriedade '${campo}'`);
     if (!req.includes(campo)) erros.push(`turn-schema.json: '${campo}' deveria ser required`);
   }
   for (const campo of props) {
-    if (!ESPERADOS.includes(campo))
+    if (!CAMPOS_TURNO.includes(campo))
       erros.push(`turn-schema.json: propriedade inesperada '${campo}'`);
   }
   for (const campo of req) {
@@ -206,22 +244,191 @@ function validarSchema() {
       erros.push(`turn-schema.json: '${campo}' em required sem propriedade correspondente`);
   }
 
-  const fixture = Object.fromEntries(
-    ESPERADOS.map((campo) => [campo, campo === "words" ? [] : "fixture"]),
-  );
-  const fixtureErrors = validateTurn(fixture, s);
+  // corrections[] e o coracao do contrato v2: array de objeto, com teto e evidencia.
+  const corrections = sc.properties?.corrections;
+  if (corrections?.type !== "array") {
+    erros.push(`turn-schema.json: 'corrections' deve ser array`);
+  } else {
+    if (corrections.maxItems !== TETO_CORRECOES) {
+      erros.push(
+        `turn-schema.json: corrections.maxItems deve ser ${TETO_CORRECOES} (recebido: ${corrections.maxItems})`,
+      );
+    }
+    const item = corrections.items;
+    if (item?.type !== "object") {
+      erros.push(`turn-schema.json: corrections.items deve ser object`);
+    } else {
+      if (item.additionalProperties !== false) {
+        erros.push(
+          `turn-schema.json: corrections.items.additionalProperties deve ser false — o strict mode recusa campo desconhecido em TODOS os niveis`,
+        );
+      }
+      const itemProps = Object.keys(item.properties || {});
+      const itemReq = item.required || [];
+      for (const campo of CAMPOS_CORRECAO) {
+        if (!itemProps.includes(campo))
+          erros.push(`turn-schema.json: corrections.items falta '${campo}'`);
+        if (!itemReq.includes(campo))
+          erros.push(`turn-schema.json: corrections.items['${campo}'] deveria ser required`);
+      }
+      for (const campo of itemProps) {
+        if (!CAMPOS_CORRECAO.includes(campo))
+          erros.push(`turn-schema.json: corrections.items campo inesperado '${campo}'`);
+      }
+      conferirEnum(item.properties?.category, CATEGORIAS, "corrections.items.category");
+    }
+  }
+
+  conferirEnum(sc.properties?.next_action, NEXT_ACTIONS, "next_action");
+
+  const words = sc.properties?.words;
+  if (words?.maxItems !== TETO_CORRECOES) {
+    erros.push(
+      `turn-schema.json: words.maxItems deve ser ${TETO_CORRECOES} (recebido: ${words?.maxItems})`,
+    );
+  }
+
+  const fixtureErrors = validateTurn(fixtureTurno(), s);
   if (fixtureErrors.length > 0) {
     erros.push(`turn-schema.json: fixture valida foi rejeitada — ${fixtureErrors.join("; ")}`);
   }
 
   console.log(
-    `turn-schema: ${props.length} campos · strict=${s.strict} · additionalProperties=${sc.additionalProperties}`,
+    `turn-schema: ${props.length} campos · corrections[]=objeto(${CAMPOS_CORRECAO.length} campos, max ${corrections?.maxItems}) · strict=${s.strict}`,
   );
+}
+
+function conferirEnum(propriedade, esperado, nome) {
+  if (!Array.isArray(propriedade?.enum)) {
+    erros.push(`turn-schema.json: '${nome}' deve declarar enum`);
+    return;
+  }
+  const faltando = esperado.filter((v) => !propriedade.enum.includes(v));
+  const sobrando = propriedade.enum.filter((v) => !esperado.includes(v));
+  if (faltando.length > 0) erros.push(`turn-schema.json: '${nome}' sem os valores ${faltando.join(", ")}`);
+  if (sobrando.length > 0) erros.push(`turn-schema.json: '${nome}' com valores extras ${sobrando.join(", ")}`);
+}
+
+// Prova que cada classe de violacao do contrato e RECUSADA. Um validador que aceita
+// tudo passa em qualquer rodada e nao protege nada; estes casos sao a prova do contrario.
+function autoTeste() {
+  const schema = JSON.parse(fs.readFileSync(SCHEMA, "utf8"));
+  const casos = [
+    {
+      nome: "turno valido",
+      turno: fixtureTurno(),
+      recusar: false,
+    },
+    {
+      nome: "4a correcao estoura o teto",
+      turno: fixtureTurno({
+        corrections: Array.from({ length: 4 }, () => fixtureTurno().corrections[0]),
+      }),
+      recusar: true,
+    },
+    {
+      nome: "categoria fora do enum",
+      turno: fixtureTurno({
+        corrections: [{ ...fixtureTurno().corrections[0], category: "spelling" }],
+      }),
+      recusar: true,
+    },
+    {
+      nome: "next_action fora do enum",
+      turno: fixtureTurno({ next_action: "advance" }),
+      recusar: true,
+    },
+    {
+      nome: "campo extra dentro de corrections[]",
+      turno: fixtureTurno({
+        corrections: [{ ...fixtureTurno().corrections[0], severity: "high" }],
+      }),
+      recusar: true,
+    },
+    {
+      nome: "correcao sem campo obrigatorio",
+      turno: fixtureTurno({
+        corrections: [{ original: "I want a coffee", suggested: "I'd like a coffee" }],
+      }),
+      recusar: true,
+    },
+    {
+      nome: "corrections como string (contrato v1)",
+      turno: fixtureTurno({ corrections: "Em vez de X, diga Y" }),
+      recusar: true,
+    },
+    {
+      nome: "correction_pt do contrato v1 nao e mais aceito",
+      turno: { ...fixtureTurno(), correction_pt: "Em vez de X, diga Y" },
+      recusar: true,
+    },
+    {
+      nome: "array vazio de correcoes e valido",
+      turno: fixtureTurno({ corrections: [], next_action: "reply" }),
+      recusar: false,
+    },
+  ];
+
+  const casosEvidencia = [
+    {
+      nome: "evidencia citada literalmente",
+      turno: fixtureTurno(),
+      recusar: false,
+    },
+    {
+      nome: "evidencia parafraseada nao vale",
+      turno: fixtureTurno({
+        corrections: [{ ...fixtureTurno().corrections[0], original: "I desire a coffee" }],
+      }),
+      recusar: true,
+    },
+    {
+      nome: "original vazio nao vale",
+      turno: fixtureTurno({
+        corrections: [{ ...fixtureTurno().corrections[0], original: "" }],
+      }),
+      recusar: true,
+    },
+    {
+      nome: "maiuscula, apostrofo curvo e espaco extra nao invalidam a evidencia",
+      turno: fixtureTurno({
+        corrections: [{ ...fixtureTurno().corrections[0], original: "I  WANT a coffee." }],
+      }),
+      recusar: false,
+    },
+  ];
+
+  let falhas = 0;
+  for (const caso of casos) {
+    const recusado = validateTurn(caso.turno, schema).length > 0;
+    if (recusado === caso.recusar) continue;
+    falhas += 1;
+    console.log(
+      `FALHA schema · ${caso.nome}: esperado ${caso.recusar ? "recusar" : "aceitar"}, obtido ${recusado ? "recusou" : "aceitou"}`,
+    );
+  }
+  for (const caso of casosEvidencia) {
+    const recusado = validateEvidence(caso.turno, FALA_FIXTURE).length > 0;
+    if (recusado === caso.recusar) continue;
+    falhas += 1;
+    console.log(
+      `FALHA evidencia · ${caso.nome}: esperado ${caso.recusar ? "recusar" : "aceitar"}, obtido ${recusado ? "recusou" : "aceitou"}`,
+    );
+  }
+
+  const total = casos.length + casosEvidencia.length;
+  console.log(
+    `self-test: ${total} casos (${casos.length} de schema · ${casosEvidencia.length} de evidencia) · ${falhas} falha(s)`,
+  );
+  if (falhas === 0) console.log("o validador recusa cada classe de violacao do contrato v2.");
+  process.exit(falhas > 0 ? 1 : 0);
 }
 
 const args = process.argv.slice(2);
 const soSchema = args.includes("--schema");
 const tudo = args.includes("--all");
+
+if (args.includes("--self-test")) autoTeste();
 
 if (soSchema || tudo) validarSchema();
 if (!soSchema || tudo) validarDataset();

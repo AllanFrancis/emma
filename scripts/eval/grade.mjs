@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateTurn } from "./turn-validator.mjs";
+import { validateTurn, validateEvidence } from "./turn-validator.mjs";
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(CURRENT_DIR, "..", "..");
@@ -31,10 +31,11 @@ function countWords(text) {
   return typeof text === "string" ? text.trim().split(/\s+/).filter(Boolean).length : 0;
 }
 
-function countCorrections(text) {
-  if (typeof text !== "string" || text.trim() === "") return 0;
-  const markers = text.match(/\bem vez de\b/gi) ?? [];
-  return markers.length > 0 ? markers.length : Number.POSITIVE_INFINITY;
+// Contrato v2: correcao e array de objeto, entao o teto de 3 e contagem EXATA.
+// O contrato v1 media isso contando "em vez de" na prosa e devolvia Infinity quando
+// nao reconhecia o formato — ou seja, reprovava turno bem corrigido em prosa livre.
+function countCorrections(turn) {
+  return Array.isArray(turn?.corrections) ? turn.corrections.length : Number.POSITIVE_INFINITY;
 }
 
 const CHECKS = [
@@ -54,21 +55,22 @@ const CHECKS = [
     id: "C3",
     name: "teto de 3 correcoes",
     criterion: "corrige somente o que importa",
-    check: (turn) => countCorrections(turn.correction_pt) <= 3,
+    check: (turn) => countCorrections(turn) <= 3,
   },
   {
     id: "C4",
     name: "nao corrige caso de controle",
     criterion: "nao vira aula de gramatica",
-    check: (turn, record) =>
-      record.tipo_erro !== "nenhum" ? null : (turn.correction_pt ?? "").trim() === "",
+    check: (turn, record) => (record.tipo_erro !== "nenhum" ? null : countCorrections(turn) === 0),
   },
   {
     id: "C5",
     name: "corrige quando ha o que corrigir",
     criterion: "ensina de fato",
     check: (turn, record) =>
-      record.deve_corrigir.length === 0 ? null : (turn.correction_pt ?? "").trim() !== "",
+      record.deve_corrigir.length === 0
+        ? null
+        : Array.isArray(turn.corrections) && turn.corrections.length > 0,
   },
   {
     id: "C6",
@@ -101,6 +103,20 @@ const CHECKS = [
     criterion: "destrava quem nao sabe o que dizer",
     check: (turn) => typeof turn.suggestion_en === "string" && turn.suggestion_en.trim() !== "",
   },
+  {
+    id: "C11",
+    name: "correcao cita evidencia literal",
+    criterion: "correcao auditavel — nao vale parafrasear a fala do aluno",
+    check: (turn, record) =>
+      countCorrections(turn) === 0 ? null : validateEvidence(turn, record.aluno).length === 0,
+  },
+  {
+    id: "C12",
+    name: "next_action coerente com o caso",
+    criterion: "nao cobra repeticao de quem nao errou",
+    check: (turn, record) =>
+      record.tipo_erro !== "nenhum" ? null : turn.next_action !== "retry",
+  },
 ];
 
 function evaluateTurn(turn, record) {
@@ -125,29 +141,53 @@ function loadDataset() {
   return records;
 }
 
+// A fala de referencia do self-test; a evidencia das correcoes tem de sair daqui.
+const FIXTURE_UTTERANCE = "I want a coffee please";
+
+function createCorrection(overrides = {}) {
+  return {
+    original: "I want a coffee",
+    suggested: "I'd like a coffee",
+    explanation_pt: "Num pedido, 'I'd like' soa mais natural do que 'I want'.",
+    category: "register",
+    ...overrides,
+  };
+}
+
 function createFixture(overrides = {}) {
   return {
     reply_en: "Nice choice! Small or large?",
     reply_pt: "Boa escolha! Pequeno ou grande?",
     instruction_pt: "Agora diga o tamanho que você quer.",
-    correction_pt: "Em vez de X, diga Y — soa mais natural.",
+    corrections: [createCorrection()],
     suggestion_en: "A small one, please.",
     suggestion_pt: "Um pequeno, por favor.",
     words: ["I'd like"],
     focus: "pedidos com I'd like",
+    next_action: "retry",
     ...overrides,
   };
 }
 
 function buildSelfTestCases() {
-  const errorRecord = { tipo_erro: "gramatical", deve_corrigir: ["x"], nivel_esperado: 2 };
-  const controlRecord = { tipo_erro: "nenhum", deve_corrigir: [], nivel_esperado: 3 };
+  const errorRecord = {
+    tipo_erro: "gramatical",
+    deve_corrigir: ["x"],
+    nivel_esperado: 2,
+    aluno: FIXTURE_UTTERANCE,
+  };
+  const controlRecord = {
+    tipo_erro: "nenhum",
+    deve_corrigir: [],
+    nivel_esperado: 3,
+    aluno: FIXTURE_UTTERANCE,
+  };
   return [
     {
       name: "valid turn",
       turn: createFixture(),
       record: errorRecord,
-      expected: { C1: true, C3: true },
+      expected: { C1: true, C3: true, C11: true },
     },
     {
       name: "missing field",
@@ -174,31 +214,64 @@ function buildSelfTestCases() {
       expected: { C1: false },
     },
     {
-      name: "four corrections",
-      turn: createFixture({
-        correction_pt:
-          "Em vez de A, diga B. Em vez de C, diga D. Em vez de E, diga F. Em vez de G, diga H.",
-      }),
+      name: "contrato v1 (correction_pt) nao passa mais",
+      turn: createFixture({ correction_pt: "Em vez de X, diga Y" }),
       record: errorRecord,
-      expected: { C3: false },
+      expected: { C1: false },
     },
     {
-      name: "unstructured corrections",
-      turn: createFixture({ correction_pt: "Corrija A. Corrija B. Corrija C. Corrija D." }),
+      name: "four corrections",
+      turn: createFixture({ corrections: Array.from({ length: 4 }, () => createCorrection()) }),
       record: errorRecord,
-      expected: { C3: false },
+      expected: { C1: false, C3: false },
+    },
+    {
+      name: "corrections ausente",
+      turn: createFixture({ corrections: undefined }),
+      record: errorRecord,
+      expected: { C3: false, C5: false },
+    },
+    {
+      name: "categoria fora do enum",
+      turn: createFixture({ corrections: [createCorrection({ category: "spelling" })] }),
+      record: errorRecord,
+      expected: { C1: false },
+    },
+    {
+      name: "next_action fora do enum",
+      turn: createFixture({ next_action: "advance" }),
+      record: errorRecord,
+      expected: { C1: false },
     },
     {
       name: "control without correction",
-      turn: createFixture({ correction_pt: "" }),
+      turn: createFixture({ corrections: [], next_action: "reply" }),
       record: controlRecord,
-      expected: { C4: true, C5: null },
+      expected: { C4: true, C5: null, C11: null, C12: true },
     },
     {
       name: "control with correction",
       turn: createFixture(),
       record: controlRecord,
       expected: { C4: false },
+    },
+    {
+      name: "control cobrando repeticao",
+      turn: createFixture({ corrections: [], next_action: "retry" }),
+      record: controlRecord,
+      expected: { C12: false },
+    },
+    {
+      name: "evidencia parafraseada",
+      turn: createFixture({ corrections: [createCorrection({ original: "I desire a coffee" })] }),
+      record: errorRecord,
+      expected: { C1: true, C11: false },
+    },
+    {
+      name: "evidencia com maiuscula e pontuacao",
+      turn: createFixture({ corrections: [createCorrection({ original: "I WANT a coffee." })] }),
+      record: errorRecord,
+      expected: { C11: true },
     },
   ];
 }
@@ -319,5 +392,77 @@ function printTable() {
   printLegend(rows);
 }
 
+// Gate da rodada real: existe evidencia suficiente e TODO turno gravado respeita o
+// contrato v2, incluindo a evidencia citada. Sai diferente de zero se faltar rodada —
+// o gate diz a verdade sobre o que ainda nao foi medido.
+const MINIMO_TURNOS = 40;
+
+function assertContract() {
+  const targets = findEvidenceTargets();
+  if (targets.length === 0) {
+    console.log("ERRO  nenhuma evidencia gravada — a rodada real ainda nao aconteceu.");
+    console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --model openai/gpt-oss-20b");
+    process.exit(1);
+  }
+
+  const dataset = loadDataset();
+  let problemas = 0;
+
+  for (const target of targets) {
+    const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
+    let contratoInvalido = 0;
+    let semEvidencia = 0;
+    let semRegistro = 0;
+
+    for (const file of files) {
+      const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
+      const record = dataset.get(rawEvidence.id);
+      const turn = extractTurn(rawEvidence);
+      if (!record) {
+        semRegistro += 1;
+        continue;
+      }
+      if (!turn || validateTurn(turn, TURN_SCHEMA).length > 0) {
+        contratoInvalido += 1;
+        continue;
+      }
+      if (validateEvidence(turn, record.aluno).length > 0) semEvidencia += 1;
+    }
+
+    const failuresDir = path.join(target.modelDir, "_failures");
+    const failures = fs.existsSync(failuresDir)
+      ? fs.readdirSync(failuresDir).filter((name) => name.endsWith(".json")).length
+      : 0;
+
+    const linha = [
+      `${target.model}: ${files.length} turnos`,
+      `contrato invalido=${contratoInvalido}`,
+      `sem evidencia=${semEvidencia}`,
+      `falhas de API=${failures}`,
+    ].join(" · ");
+
+    const reprovou =
+      files.length < MINIMO_TURNOS ||
+      contratoInvalido > 0 ||
+      semEvidencia > 0 ||
+      failures > 0 ||
+      semRegistro > 0;
+    console.log(`${reprovou ? "ERRO  " : "ok    "}${linha}`);
+    if (files.length < MINIMO_TURNOS) {
+      console.log(`      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`);
+    }
+    if (semRegistro > 0) {
+      console.log(`      ${semRegistro} evidencia(s) sem fala correspondente no dataset`);
+    }
+    if (reprovou) problemas += 1;
+  }
+
+  console.log(
+    `\nassert-contract: ${targets.length} modelo(s) · ${problemas} reprovado(s) sob o contrato v2`,
+  );
+  process.exit(problemas > 0 ? 1 : 0);
+}
+
 if (process.argv.includes("--self-test")) runSelfTest();
+else if (process.argv.includes("--assert-contract")) assertContract();
 else printTable();
