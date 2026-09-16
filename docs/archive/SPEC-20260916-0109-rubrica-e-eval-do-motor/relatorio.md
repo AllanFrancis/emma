@@ -10,8 +10,9 @@
 das quais **17 são casos de controle** — falas sem nada a corrigir. São elas que medem
 sobre-correção, o modo de falha nº 1 deste produto.
 
-Cada fala foi enviada uma vez a cada modelo, com o mesmo system prompt (v3) e o mesmo contrato
-de turno em JSON Schema (`strict: true`).
+Foram obtidas 45 respostas válidas de cada modelo, com o mesmo system prompt (v3) e o mesmo
+contrato de turno em JSON Schema (`strict: true`). No 120b houve 47 tentativas observadas: duas
+falharam antes de uma resposta válida posterior para a mesma fala.
 
 **Limites que este relatório não esconde:**
 - Uma amostra por fala. Sem repetição, não há medida de variância — um modelo pode ter tido sorte.
@@ -24,7 +25,7 @@ de turno em JSON Schema (`strict: true`).
 
 | Checagem | 20b | 120b |
 |---|---|---|
-| C1 contrato de 8 campos | 100% | 100% |
+| C1 contrato válido contra o JSON Schema | 100% | 100% |
 | C2 termina com pergunta | 98% | 100% |
 | C3 teto de 3 correções | 100% | 100% |
 | **C4 não corrige caso de controle** | **88%** | 71% |
@@ -67,11 +68,14 @@ Um aluno que não é corrigido aprende devagar. Um aluno corrigido na hora errad
 
 ## Confiabilidade
 
-**`json_validate_failed`: 2 ocorrências no 120b (`cafe-01`, `talk-01`), zero no 20b.**
+**`json_validate_failed`: 2 ocorrências observadas no 120b (`cafe-01`, `talk-01`), nenhuma
+observada no 20b.**
 
 O `strict mode` do Groq não é garantia absoluta: quando o modelo não consegue produzir JSON
-conforme o schema, a API devolve **HTTP 400**, não uma resposta reparada. Em produção, cada
-ocorrência é um turno que morre na cara do aluno.
+conforme o schema, a API devolve **HTTP 400**, não uma resposta reparada. A versão original do
+runner registrou essas ocorrências no journal, mas não preservou os corpos HTTP; portanto elas são
+um sinal operacional histórico, não evidência bruta reexecutável, e não entram no placar mecânico.
+O runner corrigido persiste todas as falhas futuras em `_failures/` sem tratá-las como sucesso.
 
 ## Recomendação
 
@@ -79,7 +83,8 @@ ocorrência é um turno que morre na cara do aluno.
 
 1. **Erra para o lado certo.** Num produto cujo público tem vergonha de falar, omitir uma correção
    custa menos que corrigir quem não errou.
-2. **Não falhou nenhuma vez** em 45 chamadas, contra 2 falhas de contrato do 120b.
+2. **Entregou 45 respostas válidas** e não apresentou falha observada na rodada; as duas falhas
+   históricas do 120b reforçam a necessidade de fallback, mas não são usadas como placar auditável.
 3. **Mais barato e mais rápido**, e sofre menos com o teto de tokens por minuto do tier gratuito.
 
 O déficit do 20b (C5 86%) é o mais fácil de atacar por prompt, e a própria evolução v1→v2→v3
@@ -102,10 +107,12 @@ Emma gera hábito. Se a leitura humana das evidências apontar que o 20b soa ras
 
 As checagens não alcançam estes 4 critérios. Leia alguns turnos em `evidence/` e decida:
 
-- [ ] responde primeiro ao **significado**, antes de qualquer correção
-- [ ] a conversa soa **natural**, não uma aula com roupa de conversa
-- [ ] a **personalidade** (tranquila) se sustenta ao longo dos turnos
-- [ ] o resultado faz **você querer responder de novo** em inglês
+- [x] responde primeiro ao **significado**, antes de qualquer correção
+- [x] a conversa soa **natural**, não uma aula com roupa de conversa
+- [x] a **personalidade** (tranquila) se sustenta ao longo das amostras
+- [x] o resultado faz **você querer responder de novo** em inglês
+
+Aceite de @allan em 2026-09-16 03:31: “Sim para todas e agora pode fechar”.
 
 Sugestão de amostra para essa leitura: `cafe-11` (fala longa com muitos erros), `livre-09`
 (produção longa), `talk-01` ("Yes." — a Emma consegue puxar conversa?), `livre-01` (aluno

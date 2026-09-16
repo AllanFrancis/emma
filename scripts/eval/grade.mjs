@@ -1,285 +1,323 @@
 #!/usr/bin/env node
-// Checagens mecanicas dos 9 criterios de qualidade de conversa + tabela comparativa.
-//
-//   node scripts/eval/grade.mjs --self-test    valida as checagens contra fixtures conhecidas
-//   node scripts/eval/grade.mjs                aplica as checagens as evidencias gravadas
-//
-// METADE DOS 9 CRITERIOS NAO E MECANIZAVEL. Este script cobre a metade que e; o resto
-// vai para julgamento humano no relatorio. Um modelo aprovado aqui NAO esta aprovado —
-// esta apenas elegivel para a leitura humana.
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Runs the mechanical dialogue-quality checks and prints the comparison table.
+// Subjective criteria remain a human decision documented in the report.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { validateTurn } from "./turn-validator.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RAIZ = path.resolve(HERE, '..', '..');
-const DATASET = path.join(HERE, 'dataset.jsonl');
+const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(CURRENT_DIR, "..", "..");
+const DATASET_PATH = path.join(CURRENT_DIR, "dataset.jsonl");
+const SCHEMA_PATH = path.join(CURRENT_DIR, "turn-schema.json");
+const TURN_SCHEMA = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
+const WORD_LIMIT_BY_LEVEL = { 1: 15, 2: 18, 3: 26, 4: 36, 5: 48 };
+const METALANGUAGE_PATTERN =
+  /\b(grammar|grammatical|mistake|error|correction|conjugat|tense|verb form)\b/i;
+const PORTUGUESE_PATTERN =
+  /\b(que|nao|não|seu|sua|deseja|dizendo|diga|fazer|frase|mais|uma|para|com|responda|pergunte|agora|voce|você|isso|porque|quando|em vez de|do|da|dos|das|no|na|pedido|tamanho|conte|escolha|use o|repita)\b/gi;
+const ENGLISH_PATTERN =
+  /\b(the|your|you|verb|before|subject|word|order|sentence|answer|say|tell|ask|instead|question)\b/gi;
 
-// Faixa de palavras da fala principal por nivel do aluno — proxy de "adapta a dificuldade".
-const TETO_PALAVRAS = { 1: 15, 2: 18, 3: 26, 4: 36, 5: 48 };
-// Metalinguagem na fala EM INGLES denuncia aula de gramatica no lugar de conversa.
-const METALINGUAGEM = /\b(grammar|grammatical|mistake|error|correction|conjugat|tense|verb form)\b/i;
-// Deteccao de portugues por CONTAGEM, nao por lista curta. A versao anterior procurava
-// acento ou meia duzia de palavras e reprovava portugues legitimo sem acento — ex.:
-// "Use a frase mais educada" e "Responda dizendo seu nome". Falso positivo em requisito
-// central (bilinguismo) e pior que nao medir.
-const PT = /\b(que|nao|não|seu|sua|deseja|dizendo|diga|fazer|frase|mais|uma|para|com|responda|pergunte|agora|voce|você|isso|porque|quando|em vez de|do|da|dos|das|no|na|pedido|tamanho|conte|escolha|use o|repita)\b/gi;
-const EN = /\b(the|your|you|verb|before|subject|word|order|sentence|answer|say|tell|ask|instead|question)\b/gi;
-
-function ehPortugues(s) {
-  if (typeof s !== 'string' || s.trim() === '') return false;
-  if (/[áàâãéêíóôõúç]/i.test(s)) return true;
-  const pt = (s.match(PT) || []).length;
-  const en = (s.match(EN) || []).length;
-  if (pt >= 2) return true;
-  return pt >= 1 && en === 0;
+function isPortuguese(text) {
+  if (typeof text !== "string" || text.trim() === "") return false;
+  if (/[áàâãéêíóôõúç]/i.test(text)) return true;
+  const portugueseMatches = (text.match(PORTUGUESE_PATTERN) ?? []).length;
+  const englishMatches = (text.match(ENGLISH_PATTERN) ?? []).length;
+  return portugueseMatches >= 2 || (portugueseMatches >= 1 && englishMatches === 0);
 }
 
-const CHECAGENS = [
+function countWords(text) {
+  return typeof text === "string" ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+}
+
+function countCorrections(text) {
+  if (typeof text !== "string" || text.trim() === "") return 0;
+  const markers = text.match(/\bem vez de\b/gi) ?? [];
+  return markers.length > 0 ? markers.length : Number.POSITIVE_INFINITY;
+}
+
+const CHECKS = [
   {
-    id: 'C1',
-    nome: 'contrato: 8 campos presentes',
-    criterio: 'base — sem isso nada mais e mensuravel',
-    fn: (t) => ['reply_en', 'reply_pt', 'instruction_pt', 'correction_pt', 'suggestion_en', 'suggestion_pt', 'words', 'focus'].every((k) => k in t),
+    id: "C1",
+    name: "contrato valido contra o JSON Schema",
+    criterion: "base — sem isso nada mais e mensuravel",
+    check: (turn) => validateTurn(turn, TURN_SCHEMA).length === 0,
   },
   {
-    id: 'C2',
-    nome: 'termina com pergunta',
-    criterio: 'faz a pessoa continuar falando ingles',
-    fn: (t) => typeof t.reply_en === 'string' && t.reply_en.trim().endsWith('?'),
+    id: "C2",
+    name: "termina com pergunta",
+    criterion: "faz a pessoa continuar falando ingles",
+    check: (turn) => typeof turn.reply_en === "string" && turn.reply_en.trim().endsWith("?"),
   },
   {
-    id: 'C3',
-    nome: 'teto de 3 correcoes',
-    criterio: 'corrige somente o que importa',
-    fn: (t) => contarCorrecoes(t.correction_pt) <= 3,
+    id: "C3",
+    name: "teto de 3 correcoes",
+    criterion: "corrige somente o que importa",
+    check: (turn) => countCorrections(turn.correction_pt) <= 3,
   },
   {
-    id: 'C4',
-    nome: 'nao corrige caso de controle',
-    criterio: 'nao vira aula de gramatica',
-    fn: (t, r) => (r.tipo_erro !== 'nenhum' ? null : (t.correction_pt || '').trim() === ''),
+    id: "C4",
+    name: "nao corrige caso de controle",
+    criterion: "nao vira aula de gramatica",
+    check: (turn, record) =>
+      record.tipo_erro !== "nenhum" ? null : (turn.correction_pt ?? "").trim() === "",
   },
   {
-    id: 'C5',
-    nome: 'corrige quando ha o que corrigir',
-    criterio: 'ensina de fato',
-    fn: (t, r) => (r.deve_corrigir.length === 0 ? null : (t.correction_pt || '').trim() !== ''),
+    id: "C5",
+    name: "corrige quando ha o que corrigir",
+    criterion: "ensina de fato",
+    check: (turn, record) =>
+      record.deve_corrigir.length === 0 ? null : (turn.correction_pt ?? "").trim() !== "",
   },
   {
-    id: 'C6',
-    nome: 'instrucao presente',
-    criterio: 'diz o que fazer agora',
-    fn: (t) => typeof t.instruction_pt === 'string' && t.instruction_pt.trim() !== '',
+    id: "C6",
+    name: "instrucao presente",
+    criterion: "diz o que fazer agora",
+    check: (turn) => typeof turn.instruction_pt === "string" && turn.instruction_pt.trim() !== "",
   },
   {
-    id: 'C7',
-    nome: 'instrucao em portugues',
-    criterio: 'explica em portugues quando necessario',
-    fn: (t) => ehPortugues(t.instruction_pt || ''),
+    id: "C7",
+    name: "instrucao em portugues",
+    criterion: "explica em portugues quando necessario",
+    check: (turn) => isPortuguese(turn.instruction_pt ?? ""),
   },
   {
-    id: 'C8',
-    nome: 'comprimento compativel com o nivel',
-    criterio: 'adapta a dificuldade',
-    fn: (t, r) => contarPalavras(t.reply_en) <= TETO_PALAVRAS[r.nivel_esperado],
+    id: "C8",
+    name: "comprimento compativel com o nivel",
+    criterion: "adapta a dificuldade",
+    check: (turn, record) =>
+      countWords(turn.reply_en) <= WORD_LIMIT_BY_LEVEL[record.nivel_esperado],
   },
   {
-    id: 'C9',
-    nome: 'sem metalinguagem na fala em ingles',
-    criterio: 'ensina sem soar artificial',
-    fn: (t) => !METALINGUAGEM.test(t.reply_en || ''),
+    id: "C9",
+    name: "sem metalinguagem na fala em ingles",
+    criterion: "ensina sem soar artificial",
+    check: (turn) => !METALANGUAGE_PATTERN.test(turn.reply_en ?? ""),
   },
   {
-    id: 'C10',
-    nome: 'oferece resposta modelo',
-    criterio: 'destrava quem nao sabe o que dizer',
-    fn: (t) => typeof t.suggestion_en === 'string' && t.suggestion_en.trim() !== '',
+    id: "C10",
+    name: "oferece resposta modelo",
+    criterion: "destrava quem nao sabe o que dizer",
+    check: (turn) => typeof turn.suggestion_en === "string" && turn.suggestion_en.trim() !== "",
   },
 ];
 
-const contarPalavras = (s) => (typeof s === 'string' ? s.trim().split(/\s+/).filter(Boolean).length : 0);
-
-function contarCorrecoes(c) {
-  if (typeof c !== 'string' || c.trim() === '') return 0;
-  const marcas = c.match(/em vez de/gi);
-  return marcas ? marcas.length : 1;
-}
-
-function avaliar(turno, registro) {
-  const res = {};
-  for (const c of CHECAGENS) {
-    let v;
+function evaluateTurn(turn, record) {
+  const result = {};
+  for (const check of CHECKS) {
     try {
-      v = c.fn(turno, registro);
+      result[check.id] = check.check(turn, record);
     } catch {
-      v = false;
+      result[check.id] = false;
     }
-    res[c.id] = v; // true | false | null (nao se aplica)
   }
-  return res;
+  return result;
 }
 
-function carregarDataset() {
-  const m = new Map();
-  fs.readFileSync(DATASET, 'utf8')
-    .split(/\r?\n/)
-    .filter((l) => l.trim())
-    .forEach((l) => {
-      const r = JSON.parse(l);
-      m.set(r.id, r);
-    });
-  return m;
+function loadDataset() {
+  const records = new Map();
+  const lines = fs.readFileSync(DATASET_PATH, "utf8").split(/\r?\n/).filter(Boolean);
+  for (const line of lines) {
+    const record = JSON.parse(line);
+    records.set(record.id, record);
+  }
+  return records;
 }
 
-// ----------------------------- self-test -----------------------------
-
-function selfTest() {
-  const registroComErro = { id: 'fx1', tipo_erro: 'gramatical', deve_corrigir: ['x'], nivel_esperado: 2 };
-  const registroControle = { id: 'fx2', tipo_erro: 'nenhum', deve_corrigir: [], nivel_esperado: 3 };
-
-  const turnoBom = {
-    reply_en: 'Nice choice! Small or large?',
-    reply_pt: 'Boa escolha! Pequeno ou grande?',
-    instruction_pt: 'Agora diga o tamanho que você quer.',
-    correction_pt: 'Em vez de "I want a coffee", diga "I\'d like a coffee" — soa mais natural.',
-    suggestion_en: 'A small one, please.',
-    suggestion_pt: 'Um pequeno, por favor.',
+function createFixture(overrides = {}) {
+  return {
+    reply_en: "Nice choice! Small or large?",
+    reply_pt: "Boa escolha! Pequeno ou grande?",
+    instruction_pt: "Agora diga o tamanho que você quer.",
+    correction_pt: "Em vez de X, diga Y — soa mais natural.",
+    suggestion_en: "A small one, please.",
+    suggestion_pt: "Um pequeno, por favor.",
     words: ["I'd like"],
-    focus: 'pedidos com I\'d like',
+    focus: "pedidos com I'd like",
+    ...overrides,
   };
+}
 
-  const turnoRuim = {
-    reply_en: 'Your grammar has a mistake in the verb tense, you should study the correction carefully because this is a common error among learners and it matters.',
-    reply_pt: '',
-    instruction_pt: '',
-    correction_pt: 'Em vez de A, diga B. Em vez de C, diga D. Em vez de E, diga F. Em vez de G, diga H.',
-    suggestion_en: '',
-    suggestion_pt: '',
-    words: [],
-    focus: '',
-  };
-
-  const turnoSobreCorrige = { ...turnoBom, correction_pt: 'Em vez de "X", diga "Y" — motivo.' };
-
-  const casos = [
-    { nome: 'turno bom x registro com erro', turno: turnoBom, registro: registroComErro, esperado: { C1: true, C2: true, C3: true, C4: null, C5: true, C6: true, C7: true, C8: true, C9: true, C10: true } },
-    { nome: 'turno ruim x registro com erro', turno: turnoRuim, registro: registroComErro, esperado: { C1: true, C2: false, C3: false, C4: null, C5: true, C6: false, C7: false, C8: false, C9: false, C10: false } },
-    { nome: 'sobre-correcao em caso de controle', turno: turnoSobreCorrige, registro: registroControle, esperado: { C4: false } },
-    { nome: 'turno bom em caso de controle nao corrige', turno: { ...turnoBom, correction_pt: '' }, registro: registroControle, esperado: { C4: true, C5: null } },
-    { nome: 'campo faltando quebra o contrato', turno: { reply_en: 'Hi?' }, registro: registroComErro, esperado: { C1: false } },
+function buildSelfTestCases() {
+  const errorRecord = { tipo_erro: "gramatical", deve_corrigir: ["x"], nivel_esperado: 2 };
+  const controlRecord = { tipo_erro: "nenhum", deve_corrigir: [], nivel_esperado: 3 };
+  return [
+    {
+      name: "valid turn",
+      turn: createFixture(),
+      record: errorRecord,
+      expected: { C1: true, C3: true },
+    },
+    {
+      name: "missing field",
+      turn: { reply_en: "Hi?" },
+      record: errorRecord,
+      expected: { C1: false },
+    },
+    {
+      name: "wrong type",
+      turn: createFixture({ words: "coffee" }),
+      record: errorRecord,
+      expected: { C1: false },
+    },
+    {
+      name: "extra field",
+      turn: createFixture({ extra: true }),
+      record: errorRecord,
+      expected: { C1: false },
+    },
+    {
+      name: "too many words",
+      turn: createFixture({ words: ["a", "b", "c", "d"] }),
+      record: errorRecord,
+      expected: { C1: false },
+    },
+    {
+      name: "four corrections",
+      turn: createFixture({
+        correction_pt:
+          "Em vez de A, diga B. Em vez de C, diga D. Em vez de E, diga F. Em vez de G, diga H.",
+      }),
+      record: errorRecord,
+      expected: { C3: false },
+    },
+    {
+      name: "unstructured corrections",
+      turn: createFixture({ correction_pt: "Corrija A. Corrija B. Corrija C. Corrija D." }),
+      record: errorRecord,
+      expected: { C3: false },
+    },
+    {
+      name: "control without correction",
+      turn: createFixture({ correction_pt: "" }),
+      record: controlRecord,
+      expected: { C4: true, C5: null },
+    },
+    {
+      name: "control with correction",
+      turn: createFixture(),
+      record: controlRecord,
+      expected: { C4: false },
+    },
   ];
-
-  let falhas = 0;
-  for (const caso of casos) {
-    const got = avaliar(caso.turno, caso.registro);
-    for (const [k, esperado] of Object.entries(caso.esperado)) {
-      const ok = got[k] === esperado;
-      if (!ok) {
-        falhas++;
-        console.log(`FALHA  ${caso.nome} · ${k}: esperado ${esperado}, obtido ${got[k]}`);
-      }
-    }
-  }
-
-  console.log(`\nself-test: ${casos.length} casos · ${CHECAGENS.length} checagens · ${falhas} falha(s)`);
-  if (falhas === 0) console.log('as checagens mecanicas se comportam como especificado.');
-  process.exit(falhas > 0 ? 1 : 0);
 }
 
-// ----------------------------- tabela -----------------------------
-
-function dirsEvidencia() {
-  const ativo = path.join(RAIZ, 'docs', 'active');
-  if (!fs.existsSync(ativo)) return [];
-  const specs = fs.readdirSync(ativo).filter((d) => d.startsWith('SPEC-'));
-  const saida = [];
-  for (const s of specs) {
-    const ev = path.join(ativo, s, 'evidence');
-    if (!fs.existsSync(ev)) continue;
-    for (const modelo of fs.readdirSync(ev)) {
-      // Pastas com '_' na frente sao baselines arquivadas (ex.: _baseline-prompt-v1),
-      // guardadas para comparacao historica. Nao sao modelos e nao entram na tabela.
-      if (modelo.startsWith('_')) continue;
-      const dir = path.join(ev, modelo);
-      if (fs.statSync(dir).isDirectory()) saida.push({ modelo, dir });
+function runSelfTest() {
+  const cases = buildSelfTestCases();
+  let failures = 0;
+  for (const testCase of cases) {
+    const actual = evaluateTurn(testCase.turn, testCase.record);
+    for (const [checkId, expected] of Object.entries(testCase.expected)) {
+      if (actual[checkId] === expected) continue;
+      failures += 1;
+      console.log(
+        `FALHA ${testCase.name} · ${checkId}: esperado ${expected}, obtido ${actual[checkId]}`,
+      );
     }
   }
-  return saida;
+  console.log(
+    `\nself-test: ${cases.length} casos · ${CHECKS.length} checagens · ${failures} falha(s)`,
+  );
+  if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
+  process.exit(failures > 0 ? 1 : 0);
 }
 
-function extrairTurno(bruto) {
-  const conteudo = bruto?.resposta?.choices?.[0]?.message?.content;
-  if (typeof conteudo !== 'string') return null;
+function findEvidenceTargets() {
+  const activeDir = path.join(PROJECT_ROOT, "docs", "active");
+  if (!fs.existsSync(activeDir)) return [];
+  const targets = [];
+  for (const spec of fs.readdirSync(activeDir).filter((name) => name.startsWith("SPEC-"))) {
+    const evidenceDir = path.join(activeDir, spec, "evidence");
+    if (!fs.existsSync(evidenceDir)) continue;
+    for (const model of fs.readdirSync(evidenceDir).filter((name) => !name.startsWith("_"))) {
+      const modelDir = path.join(evidenceDir, model);
+      if (fs.statSync(modelDir).isDirectory()) targets.push({ model, modelDir });
+    }
+  }
+  return targets;
+}
+
+function extractTurn(rawEvidence) {
+  const content = rawEvidence?.resposta?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") return null;
   try {
-    return JSON.parse(conteudo);
+    return JSON.parse(content);
   } catch {
     return null;
   }
 }
 
-function tabela() {
-  const dataset = carregarDataset();
-  const alvos = dirsEvidencia();
-
-  if (alvos.length === 0) {
-    console.log('nenhuma evidencia gravada ainda.');
-    console.log('rode: node scripts/eval/run.mjs --model <id>   (com GROQ_API_KEY no ambiente)');
-    console.log('\nAs checagens existem e estao verdes — veja: node scripts/eval/grade.mjs --self-test');
-    return;
-  }
-
-  const linhas = [];
-  for (const { modelo, dir } of alvos) {
-    const arquivos = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
-    const contagem = {};
-    let ilegiveis = 0;
-
-    for (const f of arquivos) {
-      const bruto = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      const registro = dataset.get(bruto.id);
-      const turno = extrairTurno(bruto);
-      if (!turno || !registro) {
-        ilegiveis++;
-        continue;
-      }
-      const res = avaliar(turno, registro);
-      for (const [k, v] of Object.entries(res)) {
-        if (v === null) continue;
-        contagem[k] = contagem[k] || { ok: 0, total: 0 };
-        contagem[k].total++;
-        if (v) contagem[k].ok++;
-      }
+function gradeModel(target, dataset) {
+  const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
+  const counts = {};
+  let unreadable = 0;
+  for (const file of files) {
+    const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
+    const record = dataset.get(rawEvidence.id);
+    const turn = extractTurn(rawEvidence);
+    if (!turn || !record) {
+      unreadable += 1;
+      continue;
     }
-    linhas.push({ modelo, n: arquivos.length, ilegiveis, contagem });
+    for (const [checkId, passed] of Object.entries(evaluateTurn(turn, record))) {
+      if (passed === null) continue;
+      counts[checkId] ??= { passed: 0, total: 0 };
+      counts[checkId].total += 1;
+      if (passed) counts[checkId].passed += 1;
+    }
   }
-
-  const larguraModelo = Math.max(...linhas.map((l) => l.modelo.length), 6);
-  const cab = ['modelo'.padEnd(larguraModelo), 'n', ...CHECAGENS.map((c) => c.id.padStart(4))].join(' | ');
-  console.log(cab);
-  console.log('-'.repeat(cab.length));
-  for (const l of linhas) {
-    const celulas = CHECAGENS.map((c) => {
-      const x = l.contagem[c.id];
-      if (!x || x.total === 0) return '   —';
-      return `${Math.round((x.ok / x.total) * 100)}%`.padStart(4);
-    });
-    console.log([l.modelo.padEnd(larguraModelo), String(l.n).padStart(2), ...celulas].join(' | '));
-  }
-
-  console.log('\nlegenda:');
-  for (const c of CHECAGENS) console.log(`  ${c.id.padEnd(4)} ${c.nome} — ${c.criterio}`);
-
-  const comIlegiveis = linhas.filter((l) => l.ilegiveis > 0);
-  if (comIlegiveis.length) {
-    console.log('\nrespostas ilegiveis (fora do contrato):');
-    for (const l of comIlegiveis) console.log(`  ${l.modelo}: ${l.ilegiveis}`);
-  }
-
-  console.log('\nESTA TABELA NAO APROVA MODELO. Ela filtra quem nao atende o minimo mecanico.');
-  console.log('Os criterios subjetivos — responde ao significado, conversa natural, corrige so o que');
-  console.log('importa, personalidade consistente, nao soa artificial — exigem leitura humana das');
-  console.log('evidencias antes de qualquer recomendacao.');
+  return { model: target.model, sampleSize: files.length, unreadable, counts };
 }
 
-process.argv.includes('--self-test') ? selfTest() : tabela();
+function printRows(rows) {
+  const modelWidth = Math.max(...rows.map((row) => row.model.length), 6);
+  const header = [
+    "modelo".padEnd(modelWidth),
+    "n",
+    ...CHECKS.map((check) => check.id.padStart(4)),
+  ].join(" | ");
+  console.log(header);
+  console.log("-".repeat(header.length));
+  for (const row of rows) {
+    const cells = CHECKS.map((check) => {
+      const count = row.counts[check.id];
+      if (!count || count.total === 0) return "   —";
+      return `${Math.round((count.passed / count.total) * 100)}%`.padStart(4);
+    });
+    console.log(
+      [row.model.padEnd(modelWidth), String(row.sampleSize).padStart(2), ...cells].join(" | "),
+    );
+  }
+}
+
+function printLegend(rows) {
+  console.log("\nlegenda:");
+  for (const check of CHECKS)
+    console.log(`  ${check.id.padEnd(4)} ${check.name} — ${check.criterion}`);
+  const unreadableRows = rows.filter((row) => row.unreadable > 0);
+  if (unreadableRows.length > 0) {
+    console.log("\nrespostas ilegiveis (fora do contrato):");
+    for (const row of unreadableRows) console.log(`  ${row.model}: ${row.unreadable}`);
+  }
+  console.log("\nESTA TABELA NAO APROVA MODELO. Ela filtra quem nao atende o minimo mecanico.");
+  console.log(
+    "Os criterios subjetivos exigem leitura humana das evidencias antes da recomendacao.",
+  );
+}
+
+function printTable() {
+  const targets = findEvidenceTargets();
+  if (targets.length === 0) {
+    console.log("nenhuma evidencia gravada ainda.");
+    console.log("rode: node scripts/eval/run.mjs --model <id> (com GROQ_API_KEY no ambiente)");
+    return;
+  }
+  const dataset = loadDataset();
+  const rows = targets.map((target) => gradeModel(target, dataset));
+  printRows(rows);
+  printLegend(rows);
+}
+
+if (process.argv.includes("--self-test")) runSelfTest();
+else printTable();

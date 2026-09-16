@@ -2,5 +2,5 @@
 
 > GERADO — specctl index — NÃO EDITAR
 
-## emma — aberto · 0/1 · owner @allan
-- em progresso: SPEC-20260916-0109-rubrica-e-eval-do-motor
+## emma — concluído · 1/1 · owner @allan
+- concluídos: SPEC-20260916-0109-rubrica-e-eval-do-motor

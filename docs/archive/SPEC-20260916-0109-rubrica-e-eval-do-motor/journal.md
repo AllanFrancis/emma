@@ -2,12 +2,12 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 02:12
-**Onde tô:** 45/45 nos dois modelos, `relatorio.md` escrito e recomendação (`gpt-oss-20b`) registrada no LOG. Falta só a leitura humana do critério 6.
-**Próximo passo:** usuário lê `relatorio.md` + amostras de `evidence/` e julga os 4 critérios subjetivos; com o aceite, `check 6` e `close`.
-**Última decisão:** recomendado `gpt-oss-20b` para a Fase 1 — erra por omissão, não por corrigir quem não errou, e teve zero falhas de contrato contra 2 do 120b.
-**Bloqueio atual:** nenhum — `GROQ_API_KEY` só é necessária a partir da rodada real (fase 5)
-**Se retomar, ler:** main.md desta SPEC + `.scratch/prototipo/_decoded/app-inline-1.html` (protótipo decodificado)
+**Última atualização:** 2026-09-16 03:48
+**Onde tô:** entrega completa, critérios 6/6 evidenciados e revisão final APROVADA COM OBSERVAÇÕES.
+**Próximo passo:** executar `close --dry` e, com os gates verdes, `close`.
+**Última decisão:** `gpt-oss-20b` aprovado pelo usuário para a Fase 1; recomendação sustentada por 90 respostas válidas e leitura humana.
+**Bloqueio atual:** nenhum.
+**Se retomar, ler:** `main.md`, `relatorio.md` e `6_task_review.md` desta SPEC.
 
 ### Fases
 | # | Descrição | Status | Atualizado |
@@ -17,7 +17,7 @@
 | 3 | Dataset ≥40 falas com erros típicos de interferência do português | concluído | 2026-09-16 01:30 |
 | 4 | `validate.mjs` — validação estrutural sem gastar API | concluído | 2026-09-16 01:30 |
 | 5 | `run.mjs` + rodada real contra ≥2 modelos | concluído | 2026-09-16 02:09 |
-| 6 | `grade.mjs` + relatório comparativo + recomendação | em progresso | 2026-09-16 02:10 |
+| 6 | `grade.mjs` + relatório comparativo + recomendação | concluído | 2026-09-16 03:47 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 - fato: protótipo = 74KB de JS vanilla, `FLOW` com as 21 telas, contrato de 8 campos, `QUOTA = 8`, chave no browser e JSON por fatiamento de chaves — detalhe completo em `docs/features/dialogo.md`.
@@ -48,13 +48,15 @@
 - `scripts/eval/rubric.md`, `scripts/eval/turn-schema.json` — fases 1 e 2
 - `scripts/eval/dataset.jsonl` (45 falas), `scripts/eval/validate.mjs` — fases 3 e 4
 - `scripts/eval/run.mjs`, `scripts/eval/grade.mjs`, `relatorio.md`, `evidence/` (90 turnos + baselines) — fases 5 e 6
+- `scripts/eval/turn-validator.mjs`, `6_task_review.md` — validação integral do contrato e parecer final da fase 6
 
 ### Onde parei
-45/45 nos dois. 20b: C4 88 · C5 86 · C7 89, zero falhas de contrato. 120b: C4 71 · C5 96 · C7 93, mas 2 `json_validate_failed` e sobre-correções ruins (corrigiu maiúscula de "english" em app de fala). Falta a leitura humana.
+45/45 nos dois. 20b: C4 88 · C5 86 · C7 89. 120b: C4 71 · C5 96 · C7 93. Usuário aprovou os quatro critérios subjetivos e a recomendação; revisão final aprovada com observações após três ciclos.
 
 ### Sessões (máx 5 linhas + 1 agregada)
 - 2026-09-16 01:09 — init do sistema v4, dissecação do protótipo, 8 decisões de produto, abertura desta SPEC.
 - 2026-09-16 01:34 — fases 1–4 concluídas, 5–6 com código verde; 6 artefatos em `scripts/eval/`; commits `43aee0f` e `7ff2961`.
+- 2026-09-16 03:47 — aceite humano registrado; medidor reforçado após 3 ciclos de review; fase 6 concluída e pronta para fechamento.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -124,3 +126,32 @@
 ## 2026-09-16 02:12 — [nota] Fecho de sessao. Relatorio e as 90 evidencias commitados; lint 0/0 guardou o commit (encadeado com &&). close --dry: 4 bloqueios, e TRES deles sao consequencia do primeiro - criterio 6 (evidence: manual @allan), [conclusao] no LOG, e R.7 nas features dialogo e avaliacao. Nao executei os tres ultimos de proposito: escrever conclusao e marcar a SPEC como concluida nas features antes do aceite humano seria declarar entregue uma SPEC em voo e deixaria o close --dry verde sem que nada real tivesse avancado. O digest sera gerado pela ferramenta no close, nunca a mao. ESTADO PARA RETOMAR: tudo que dependia de codigo esta feito e verificado; o unico caminho para frente e o usuario ler relatorio.md e amostras de evidence/openai_gpt-oss-20b/ (sugeridas: talk-01, livre-01, hotel-12) e julgar os 4 criterios subjetivos. Com o aceite: check 6, log conclusao, R.7 nas duas features, close. PENDENCIA FORA DA SPEC: as 6 chaves do Groq foram coladas no chat e seguem expostas - precisam ser revogadas e regeradas, incluindo a usada nesta sessao.
 
 ⎿ commit 465701c
+
+## 2026-09-16 03:31 — [nota] Review da fase 6 registrada em `6_task_review.md`: MUDANÇAS SOLICITADAS. Achados MAJOR para memória da feature: (1) C1 do grader só verifica presença dos 8 campos e não valida tipos, propriedades adicionais ou `maxItems` contra `turn-schema.json`; (2) `run.mjs` não persiste tentativas HTTP com erro, portanto as duas ocorrências de `json_validate_failed` usadas na recomendação não têm saída bruta versionada; (3) C3 subconta correções quando o texto não repete “em vez de”; (4) `grade.mjs` e `run.mjs` falham no lint isolado e usam identificadores/comentários fora do padrão de código em inglês. A recomendação do 20b segue plausível, mas esses gaps de auditabilidade e padrão devem ser corrigidos antes do fechamento.
+
+## 2026-09-16 03:44 — [nota] Ciclo 2 da review da fase 6: os quatro MAJOR anteriores foram tratados e todas as validações passaram, mas surgiu um novo MAJOR de reprodutibilidade. A refatoração de `run.mjs` alterou o prompt após a coleta: as 90 evidências contêm o v3 com exemplos concretos, enquanto o runner atual remove esses exemplos e acrescenta a regra de fala transcrita. Assim, o dry-run já não representa o experimento publicado e uma retomada pode misturar versões no mesmo diretório. Veredito permanece MUDANÇAS SOLICITADAS até restaurar o prompt v3 byte a byte ou versionar o novo texto como v4 com evidências separadas.
+
+## 2026-09-16 03:41 — [nota] verify: 4/4 critérios passaram (commit `06b391c`)
+
+- PASS: Dataset com ≥40 falas versionado e estruturalmente válido (…
+- PASS: Contrato do turno em JSON Schema, com additionalProperties …
+- PASS: Runner executa o dataset contra ≥2 modelos e persiste as sa…
+- PASS: Checagens mecânicas dos 9 critérios implementadas e verdes …
+
+## 2026-09-16 03:41 — [nota] verify: 4/4 critérios passaram (commit `06b391c`)
+
+- PASS: Dataset com ≥40 falas versionado e estruturalmente válido (…
+- PASS: Contrato do turno em JSON Schema, com additionalProperties …
+- PASS: Runner executa o dataset contra ≥2 modelos e persiste as sa…
+- PASS: Checagens mecânicas dos 9 critérios implementadas e verdes …
+
+## 2026-09-16 03:46 — [nota] verify: 4/4 critérios passaram (commit `06b391c`)
+
+- PASS: Dataset com ≥40 falas versionado e estruturalmente válido (…
+- PASS: Contrato do turno em JSON Schema, com additionalProperties …
+- PASS: Runner executa o dataset contra ≥2 modelos e persiste as sa…
+- PASS: Checagens mecânicas dos 9 critérios implementadas e verdes …
+
+## 2026-09-16 03:48 — [conclusão] Rubrica auditável, dataset de 45 falas, contrato JSON Schema, runner com persistência de sucessos e falhas, grader validando schema e relatório comparativo entregues. Usuário aprovou os quatro critérios subjetivos e o gpt-oss-20b para a Fase 1. Revisão final da fase 6: APROVADO COM OBSERVAÇÕES, sem CRITICAL ou MAJOR pendente; validações específicas, lint isolado, typecheck, verify --all e diff-check verdes.
+
+⎿ commit 06b391c+dirty · 8 files changed, 638 insertions(+), 451 deletions(-)
