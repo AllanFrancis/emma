@@ -6,7 +6,10 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // `.scratch` e `.tanstack` guardam artefato descartavel e gerado — inclusive bundles
+  // de terceiros com megabytes de JS minificado. O eslint nao le o .gitignore sozinho, e
+  // sem estas entradas o `eslint .` tenta formatar esses arquivos e trava a rodada.
+  { ignores: ["dist", ".output", ".vinxi", ".scratch", ".tanstack", "src/routeTree.gen.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
