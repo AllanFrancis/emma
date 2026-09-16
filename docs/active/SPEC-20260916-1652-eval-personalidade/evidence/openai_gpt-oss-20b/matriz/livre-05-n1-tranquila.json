@@ -1,0 +1,165 @@
+{
+  "id": "livre-05",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "nivel": 1,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-16T21:23:09.410Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 1. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Conversa livre. Cenario: Open conversation. Follow whatever the student brings up.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "Me and my wife travel to Europe last year, was amazing"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-4aff5d0a-117e-4d57-9b2f-369c8dcc4a1d",
+    "object": "chat.completion",
+    "created": 1789593807,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"It sounds like you and your wife traveled to Europe last year and it was amazing. Which country did you enjoy the most?\",\"reply_pt\":\"Parece que você e sua esposa viajaram para a Europa no ano passado e foi incrível. Qual país vocês mais gostaram?\",\"instruction_pt\":\"Repita a frase corrigindo a ordem dos pronomes, o tempo verbal e adicionando o pronome 'It'.\",\"corrections\":[{\"category\":\"grammar\",\"original\":\"Me and my wife\",\"suggested\":\"My wife and I\",\"explanation_pt\":\"A ordem correta é 'My wife and I', não 'Me and my wife'.\"},{\"category\":\"grammar\",\"original\":\"travel\",\"suggested\":\"traveled\",\"explanation_pt\":\"Usamos 'traveled' no passado.\"},{\"category\":\"grammar\",\"original\":\"was amazing\",\"suggested\":\"It was amazing\",\"explanation_pt\":\"Precisamos de um sujeito: 'It'.\"}],\"suggestion_en\":\"My wife and I traveled to Europe last year, and it was amazing.\",\"suggestion_pt\":\"Minha esposa e eu viajamos para a Europa no ano passado, e foi incrível.\",\"words\":[\"My wife and I\",\"traveled\",\"It was amazing\"],\"focus\":\"Use 'My wife and I' e 'traveled' no passado, e inclua o pronome 'It' antes de 'was amazing'.\",\"next_action\":\"retry\"}",
+          "reasoning": "We need to parse the student's utterance: \"Me and my wife travel to Europe last year, was amazing\".\n\nWe should first interpret the meaning. The student says: \"My wife and I traveled to Europe last year, and it was amazing.\" It's past tense, but uses present tense \"travel\" incorrectly, and \"was amazing\" but missing subject. Also \"Me and my wife\" is incorrect order. We have to respond in English, but we can incorporate corrections. The response should include:\n\n- reply_en: first respond to meaning, maybe: \"It sounds like you and your wife traveled to Europe last year and it was amazing.\" End with a question: e.g., \"Where did you go in Europe?\" or \"Which country did you like the most?\" Let's ask a question.\n\n- reply_pt: short Portuguese translation.\n\n- corrections: up to 3 items. We have issues:\n\n1. \"Me and my wife\" -> Should be \"My wife and I\". Category: grammar (or word_order? It's a pronoun order). It is a register error but grammar is fine. We'll classify as grammar. Explanation in Portuguese: \"A ordem correta é 'my wife and I', não 'me and my wife'.\" Original: \"Me and my wife\". Suggested: \"My wife and I\".\n\n2. \"travel\" should be past tense \"traveled\". Category: grammar. Explanation: \"Usamos 'traveled' no passado.\" Original: \"travel\". Suggested: \"traveled\".\n\n3. \"was amazing\" missing subject. Should be \"It was amazing\" or \"It was amazing\". Category: grammar. Explanation: \"Para falar que foi incrível, precisamos usar o pronome 'It'\". Original: \"was amazing\". Suggested: \"It was amazing\".\n\nWe need max 3 corrections, we have exactly 3.\n\nWe also need \"focus\": a short improvement point: maybe \"Use 'My wife and I' and past tense, add subject.\" But we should be concise: maybe: \"Use 'My wife and I' and past tense.\" Let's pick: \"Use 'My wife and I' and past tense.\" But keep in Portuguese: \"Use 'My wife and I' e 'traveled'\".\n\n\"Instruction_pt\": \"Corrija a frase usando as sugestões de correção.\" The instruction should be a sentence telling the student what to do next: \"Use as correções sugeridas para melhorar sua frase em inglês.\" We cannot use a blank.\n\n\"next_action\": Should be 'reply' or 'continue_mission' or 'retry'? We have corrections, so we probably want the student to correct. But we might choose 'reply' because we ask a question and they can respond. But we could also ask them to correct the sentence. But guidelines: \"next_action: 'retry' when the student gains more repeating the own speech with the correction applied; 'reply' when basta ele responder a sua pergunta; 'continue_mission' when a etapa atual fechou.\" We are giving corrections. We probably want 'reply', as they can respond to question. But we also want them to fix the sentence. We could set 'reply' and hope they correct? Or 'retry'? In the example, we want them to use corrections. But they haven't yet applied them. Usually the instruction says what to do next. In the guidelines: \"When there is something to correct, we can do 'retry'?\" Let's read: \"When there's something to correct, you should propose what to do next. 'retry' when the student gains more repeating the own speech with the correction applied; 'reply' when basta ele responder a sua pergunta; 'continue_mission' when the step is closed and conversation continues; 'complete_mission' when objective done.\" In our case, we are giving corrections. The student has not yet repeated the corrected sentence. So we might ask them to correct it. But we can just say 'reply' because we ask a question: \"Where did you go?\" They can answer. But we also want them to correct their sentence. Perhaps we can set next_action to 'retry'? But 'retry' means \"the student repeats their own speech with the correction applied\". That might be a good approach: \"Please repeat the sentence with the corrections.\" So instruction_pt would say: \"Repita a frase corrigindo a ordem e o tempo verbal.\" Next action: 'retry'. That seems consistent. But then we also ask a question? The guidelines say we should always end reply with a question. So we can do both: instruction to repeat corrected sentence, and question to keep conversation. 'next_action' could be 'retry' because we want them to apply corrections. But we might also ask a question; they can do both: repeat and answer. 'retry' might be enough. So let's set next_action: 'retry'.\n\nNow we need \"suggestion_en\" and \"suggestion_pt\": a model short response that the student could say. Since level 1, they may respond with short sentence. Suggestion: \"My wife and I traveled to Europe last year, and it was amazing.\" And maybe add a question. But suggestion is a model answer to what they could say. So we can give the corrected sentence. Then in Portuguese: \"Minha esposa e eu viajamos para a Europa no ano passado, e foi incrível.\"\n\n\"words\": up to 3 expressions practiced. We could include \"My wife and I\", \"traveled to Europe\", \"was amazing\". But maybe choose \"My wife and I\", \"traveled\", \"was amazing\". The schema says array of strings.\n\nNow let's structure JSON accordingly.\n\nCheck schema:\n\n- reply_en: string, ends with question. \n- reply_pt: string\n- instruction_pt: string\n- corrections: array of up to 3 objects with required fields original, suggested, explanation_pt, category. Provide 3.\n- suggestion_en: string\n- suggestion_pt: string\n- words: array of up to 3 strings\n- focus: string\n- next_action: one of enum\n\nEnsure no missing fields.\n\nLet's craft reply_en: \"It sounds like you and your wife traveled to Europe last year and it was amazing. Which country did you enjoy the most?\" Must end with question. Good.\n\nreply_pt: \"Parece que você e sua esposa viajaram para a Europa no ano passado e foi incrível. Qual país vocês mais gostaram?\" We'll keep short.\n\ninstruction_pt: \"Repita a frase corrigindo a ordem dos pronomes, o tempo verbal e adicionando o pronome 'It'.\"\n\nfocus: \"Use 'My wife and I' e 'traveled' no passado, e inclua o pronome 'It' antes de 'was amazing'.\"\n\nnext_action: \"retry\"\n\nNow corrections:\n\n1. original: \"Me and my wife\", suggested: \"My wife and I\", explanation: \"A ordem correta é 'My wife and I', não 'Me and my wife'.\" category: grammar.\n\n2. original: \"travel\", suggested: \"traveled\", explanation: \"Usamos 'traveled' no passado.\" category: grammar.\n\n3. original: \"was amazing\", suggested: \"It was amazing\", explanation: \"Precisamos de um sujeito: 'It'.\" category: grammar.\n\nWe can classify all as grammar.\n\nCheck each original is exact literal: yes.\n\nNow words: maybe [\"My wife and I\", \"traveled\", \"It was amazing\"].\n\nsuggestion_en: \"My wife and I traveled to Europe last year, and it was amazing.\"\n\nsuggestion_pt: \"Minha esposa e eu viajamos para a Europa no ano passado, e foi incrível.\"\n\nAll good.\n\nNow produce JSON. Ensure no extra whitespace? Use compact. Let's produce."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.192458809,
+      "prompt_tokens": 1534,
+      "prompt_time": 0.077627041,
+      "completion_tokens": 1899,
+      "completion_time": 2.115993288,
+      "total_tokens": 3433,
+      "total_time": 2.193620329,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1597
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_e594c51153",
+    "x_groq": {
+      "id": "req_01m2p1mr5be9ntn88g13r3zdme",
+      "seed": 1050862629
+    },
+    "service_tier": "on_demand"
+  }
+}

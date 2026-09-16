@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 17:16
+**Última atualização:** 2026-09-16 17:53
 **Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
 **Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
 **Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
@@ -109,3 +109,91 @@ Lição que passa para as próximas SPECs: não rodar `verify` no meio de uma ro
 de recusar dado parcial por construção, mas o hábito de verificar cedo transforma qualquer gate
 frouxo em selo falso.
 ⎿ commit c3ecccf+dirty · 3 files changed, 44 insertions(+), 3 deletions(-)
+
+## 2026-09-16 17:52 — [nota] verify: 2/6 critérios passaram (commit `0e870ef`)
+
+- PASS: Matriz executada: cada fala do subconjunto tem as 4 células…
+- FAIL: Invariância pedagógica: `corrections[].suggested`, `categor…
+- PASS: Diferença de estilo: `reply_en` e `explanation_pt` mensurav…
+- FAIL: Nenhum tom corrige mais itens que o outro para a mesma fala…
+- FAIL: As 13 checagens do contrato v2 seguem verdes sobre as saída…
+- FAIL: Comparação v4→v5 nas 7 falas que falharam, com as duas evid…
+
+## 2026-09-16 17:53 — [descoberta] Matriz 48/48: o tom TRANQUILA suprime correcao (C5 75% vs 94% da direta); C4 69% e composicao de amostra e nao regressao do v5; falha grave em livre-02 corrigindo maiuscula contra a DEC-0312
+
+Matriz completa: 48/48 células, 12 falas × {nível 1, 4} × {tranquila, direta}. Gates:
+`--assert-completo` PASSA · `--assert-diferenca` PASSA · `--assert-invariancia` REPROVA (19 de 24
+pares) · `--assert-teto` REPROVA (6 de 24).
+
+DECOMPOSIÇÃO DAS 19 VIOLAÇÕES DE INVARIÂNCIA. O número bruto é enganoso e o erro é meu: incluí
+`focus` — texto livre — numa comparação por igualdade exata, e duas gerações independentes quase
+nunca redigem igual. Decompondo os 24 pares (fala × nível):
+
+- 5 idênticos em tudo, inclusive `focus`
+- 5 divergem SÓ na redação de `focus` (correção idêntica) — não é violação pedagógica
+- 8 divergem em `suggested` ou `category`, com a mesma quantidade
+- 6 divergem na QUANTIDADE de correção
+
+E dentro dos 8: quatro têm `suggested` IDÊNTICO e só a `category` difere (`cafe-04 n4`
+preposition×grammar, `hotel-05 n4` false_friend×grammar, `livre-05 n4`, `talk-06 n1`
+false_friend×grammar). Isso é inconsistência de rótulo, não pedagogia diferente.
+
+Divergência real no QUE se ensina: 4 (texto da correção) + 6 (quantidade) = 10 de 24 pares (42%).
+
+C4 E C5 POR TOM — o achado principal:
+
+| tom | células | correções emitidas | C4 (não corrige controle) | C5 (corrige quando há) |
+|---|---|---|---|---|
+| direta | 24 | 24 | 6/8 = 75% | 15/16 = 94% |
+| tranquila | 24 | 22 | 5/8 = 63% | 12/16 = 75% |
+
+O total de correções é praticamente igual (24 vs 22), então a diferença NÃO é "direta corrige
+mais". A `direta` é mais ACERTADA nas duas pontas: corrige mais o que deve (94% vs 75%) e
+sobre-corrige menos o que não deve (75% vs 63%). Ou seja, o tom "tranquila" está SUPRIMINDO
+correção — exatamente o modo de falha que a §6 proíbe ("nenhuma personalidade pode prejudicar a
+didática"). 4 das 5 falhas de C5 são `tranquila`.
+
+C4 = 69% NÃO É REGRESSÃO DO V5. É composição de amostra, e a aritmética fecha: dos 5 falhas de C4,
+QUATRO são `hotel-07` ("What time is the breakfast?") nas suas 4 células — e o v4 falhava
+exatamente essa mesma fala. No dataset de 45, `hotel-07` é 1 de 17 controles (6% de peso); na
+matriz é 1 de 4 controles (25% de peso), e cada fala aparece 4 vezes. Mesmo comportamento, peso 4×
+maior. A 5ª falha é `livre-02 n1 tranquila`.
+
+`hotel-07` tem um ganho REAL do v5, apesar de continuar sobre-corrigindo: no v4 a explicação saía em
+inglês ("Use 'breakfast' without the article, it's an uncountable noun."); nas 4 células do v5 sai
+em português ("Não se usa artigo antes de 'breakfast'."). C13 subiu de 88% para 97%.
+
+FALHA GRAVE, e ela viola uma decisão ativa: `livre-02 n1 tranquila` corrigiu "english" → "English"
+na fala "Sorry, my english is very bad", categoria `vocabulary`, explicação "Use maiúscula em nomes
+de línguas", e `next_action: retry`. Pedir repetição a quem acabou de declarar vergonha do próprio
+inglês, por causa de MAIÚSCULA. A DEC-20260916-0312 está EXPLÍCITA no prompt v5 ("não corrija
+maiúscula, pontuação nem grafia, porque nada disso existe na fala") e o modelo violou. É a mesma
+falha que reprovou o `gpt-oss-120b` na SPEC-20260916-0109. Ocorreu em 1 de 4 células; o v4 (nível 2,
+tranquila) não cometeu.
+
+LIMITE METODOLÓGICO QUE ATRAVESSA TUDO: nenhuma rodada, v4 ou v5, fixa `temperature` ou `seed`. O
+payload arquivado do v4 tem só `model`. Com amostragem estocástica e n=1 por célula, diferença
+isolada entre células NÃO é atribuível ao tom nem ao prompt. Só padrão consistente sustenta
+atribuição. Falta uma condição de controle — a mesma célula repetida — para quantificar a variância
+de base. Isso não invalida os achados consistentes; invalida a leitura de casos isolados.
+
+Aplicando esse critério aos 6 casos de quantidade diferente: a DIREÇÃO É MISTA (4 com `direta`
+corrigindo mais, 2 com `tranquila` corrigindo mais), o que é assinatura de ruído. MAS `cafe-02` é
+consistente: `direta` corrigiu em n1 e n4, `tranquila` omitiu em n1 e n4.
+
+CRUZAMENTO COM A COMPARAÇÃO CONTROLADA (1 de 7 concluída, `cafe-02`): em condição idêntica ao v4
+(nível 2, tom tranquila), o v5 também OMITIU — 0 correções, `next_action: reply`, a forma certa em
+`suggestion_en`. Somando as observações de `cafe-02`: 4 em `tranquila` (v4 n2, v5 controlado n2, v5
+matriz n1, v5 matriz n4) todas OMITINDO, e 2 em `direta` (v5 matriz n1 e n4) ambas CORRIGINDO.
+6 observações, padrão limpo: quem determina a correção de `cafe-02` é o TOM, não a versão do prompt.
+A regra de precedência do v5 não consertou a omissão no tom tranquila.
+
+ESTADO DA COMPARAÇÃO: 1 de 7. Bloqueada em 429 com `retry-after` de 677s, e o revelador é que
+`remainingRequests: 950` e `remainingTokens: 5952` parecem SAUDÁVEIS — o 429 vem de um limite que
+esses headers por minuto não expõem, provavelmente a janela mais longa do tier gratuito. Gastamos
+45 turnos na SPEC anterior + 48 células hoje. O job segue retentando com backoff.
+
+BUG NO MEU GATE do critério 7: `--assert-contract` exige ≥40 turnos POR GRUPO, e o grupo da
+comparação tem 7 por desenho. Esse critério nunca passaria. Não corrigi agora por instrução
+explícita do usuário de não alterar código antes da análise final.
+⎿ commit 0e870ef+dirty · 2 files changed, 12 insertions(+), 3 deletions(-)

@@ -1,0 +1,165 @@
+{
+  "id": "livre-09",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "direta",
+  "nivel": 4,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-16T21:40:18.290Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 4. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Conversa livre. Cenario: Open conversation. Follow whatever the student brings up.\nTom: direta e sem rodeios. Cobra a repeticao. Nunca ofende, humilha nem usa palavrao.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "I think that the people that lives in big cities they have more stress than the people that lives in small cities because the traffic and the noise"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-d6e53102-bbda-4cdf-8319-be10019d5ca6",
+    "object": "chat.completion",
+    "created": 1789594836,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"I hear that you think people who live in big cities experience more stress than those in smaller cities because of traffic and noise. What do you think people can do to reduce that stress?\",\"reply_pt\":\"Entendo que você acha que pessoas que vivem em grandes cidades têm mais estresse do que as de cidades menores por causa do tráfego e do barulho. O que você acha que as pessoas podem fazer para reduzir esse estresse?\",\"instruction_pt\":\"Corrija a frase usando 'live' em vez de 'lives'.\",\"corrections\":[{\"original\":\"the people that lives\",\"suggested\":\"the people that live\",\"explanation_pt\":\"Você usou 'lives' com 'people', que é plural. Use 'live'.\",\"category\":\"grammar\"},{\"original\":\"the people that lives\",\"suggested\":\"the people that live\",\"explanation_pt\":\"Você usou 'lives' com 'people', que é plural. Use 'live'.\",\"category\":\"grammar\"}],\"suggestion_en\":\"I think people who live in big cities have more stress than those in small cities because of traffic and noise.\",\"suggestion_pt\":\"Acho que pessoas que vivem em grandes cidades têm mais estresse do que as de cidades pequenas por causa do tráfego e do barulho.\",\"words\":[\"big cities\",\"traffic\",\"noise\"],\"focus\":\"Use 'live' em vez de 'lives' com 'people', que é plural.\",\"next_action\":\"reply\"}",
+          "reasoning": "We need to parse the user speech: \"I think that the people that lives in big cities they have more stress than the people that lives in small cities because the traffic and the noise\"\n\nWe must respond following rules.\n\nWe should first check for errors. Let's analyze:\n\nOriginal: I think that the people that lives in big cities they have more stress than the people that lives in small cities because the traffic and the noise\n\nCorrections: We can identify up to 3 items.\n\nPotential errors:\n\n1. \"the people that lives\" – subject-verb agreement: \"people\" is plural, so should be \"live\" not \"lives\". Also \"that\" is less idiomatic; better use \"who\" or \"that\" can be used but we can correct verb.\n\nSo correction: original: \"the people that lives\" -> suggested: \"the people that live\" or \"the people who live\". Category grammar.\n\n2. The clause structure: \"they have more stress than the people that lives in small cities because the traffic and the noise\". Maybe missing \"the traffic and the noise\" is incomplete; maybe \"the traffic and noise\" but that's fine. But the phrase \"the traffic and the noise\" is okay. Another potential issue: The sentence is a bit long but fine.\n\n3. \"the traffic and the noise\" could be \"traffic and noise\" or \"the traffic and noise\". But it's okay.\n\nAlso \"people that lives\" also appears in second clause \"people that lives in small cities\". So we can correct both occurrences, but we need separate corrections for each occurrence? According to rule: each item must have original literal. We might combine both as same original? We could produce two correction items: one for each occurrence, but we might exceed 3. We have two occurrences; we can create two correction items. Another potential correction: use \"who\" instead of \"that\" might be suggestion but not mandatory.\n\nAlso \"the traffic and the noise\" could be simplified to \"traffic and noise\", but not necessary.\n\nAlso \"the people that lives\" appears twice. But we might create correction items:\n\n- Original: \"the people that lives\" (first instance) -> \"the people that live\"\n- Original: \"the people that lives\" (second instance) -> same.\n\nBut the rule: each item of corrections must have original literal. It may be okay.\n\nWe can also consider \"people that lives\" as false friend? It's grammar.\n\nAlso \"they have more stress\" - fine.\n\nAlso \"traffic and the noise\" - maybe missing \"the\" before noise? But it's fine.\n\nThus we have at least 2 grammar corrections.\n\nWe also need to reply with meaning: The student says \"I think that people who live in big cities have more stress than people who live in small cities because of traffic and noise.\"\n\nReply in English, 1-3 sentences, ending with a question. The reply should first respond to the meaning.\n\nWe also provide suggestion_en and suggestion_pt: maybe short model answer: \"I agree, traffic and noise can increase stress. How do you think people could cope with this?\" but we need 1-3 sentences ending with a question.\n\nWe also need suggestion_pt: translation.\n\nFocus: A short point of improvement, e.g. \"Usar 'live' em vez de 'lives' com 'people'.\" That is short.\n\nInstruction_pt: a phrase telling the student what to do now. For example: \"Corrija a frase usando a forma correta do verbo.\"\n\nNext_action: likely reply (since we ask a question). Or maybe retry? We need to decide.\n\nWe have corrections to give: we should correct both instances.\n\nBut we need to keep at most 3 corrections. So we give two corrections.\n\nNow let's craft JSON.\n\nNeed to list words: up to 3 expressions practiced. We can include \"traffic\", \"noise\", \"stress\"? But they are already used. We can add maybe \"big cities\" \"small cities\"? But let's pick \"big cities\", \"traffic\", \"noise\".\n\nNow corrections:\n\nItem 1: category grammar, explanation_pt \"Você usou 'lives' com 'people', que é plural. Use 'live'.\" original \"the people that lives\", suggested \"the people that live\".\n\nItem 2: same for second.\n\nWe should also consider if there is any other correction like \"people that lives in small cities\" again same. So we have two corrections.\n\nWe also might correct \"the traffic and the noise\" maybe change to \"traffic and noise\" but not necessary.\n\nOk.\n\nNow reply_en: \"I hear that you think people who live in big cities experience more stress than those in smaller cities because of traffic and noise.\" Then question: \"What do you think people can do to reduce that stress?\" That's 2 sentences, ends with a question.\n\nReply_pt: translation.\n\nSuggestion_en: A model answer the student could say: \"I think that people who live in big cities have more stress than people who live in small cities because of traffic and noise.\" That's basically correct. Maybe we can shorten: \"I think people who live in big cities have more stress than those in small cities because of traffic and noise.\" suggestion_pt accordingly.\n\nWords: [\"big cities\", \"traffic\", \"noise\"]\n\nNow focus: short improvement point: \"Use 'live' instead of 'lives' with 'people'.\" We'll write: \"Use 'live' com 'people', que é plural.\"\n\nInstruction_pt: \"Corrija a frase usando 'live' em vez de 'lives'.\" Something like that.\n\nNow next_action: reply.\n\nLet's compile.\n\nCheck JSON validity. Need to ensure all required fields present.\n\nLet's write:\n\n{\n  \"reply_en\":\"I hear that you think people who live in big cities experience more stress than those in smaller cities because of traffic and noise. What do you think people can do to reduce that stress?\",\n  \"reply_pt\":\"Entendo que você acha que pessoas que vivem em grandes cidades têm mais estresse do que as de cidades menores por causa do tráfego e do barulho. O que você acha que as pessoas podem fazer para reduzir esse estresse?\",\n  \"instruction_pt\":\"Corrija a frase usando 'live' em vez de 'lives'.\",\n  \"corrections\":[\n    {\n      \"original\":\"the people that lives\",\n      \"suggested\":\"the people that live\",\n      \"explanation_pt\":\"Você usou 'lives' com 'people', que é plural. Use 'live'.\",\n      \"category\":\"grammar\"\n    },\n    {\n      \"original\":\"the people that lives\",\n      \"suggested\":\"the people that live\",\n      \"explanation_pt\":\"Você usou 'lives' com 'people', que é plural. Use 'live'.\",\n      \"category\":\"grammar\"\n    }\n  ],\n  \"suggestion_en\":\"I think people who live in big cities have more stress than those in small cities because of traffic and noise.\",\n  \"suggestion_pt\":\"Acho que pessoas que vivem em grandes cidades têm mais estresse do que as de cidades pequenas por causa do tráfego e do barulho.\",\n  \"words\":[\"big cities\",\"traffic\",\"noise\"],\n  \"focus\":\"Use 'live' em vez de 'lives' com 'people', que é plural.\",\n  \"next_action\":\"reply\"\n}\n\nCheck that each field is present, schema matches. corrections array items have required fields: original, suggested, explanation_pt, category.\n\nAll good.\n\nLet's output JSON."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.306427235,
+      "prompt_tokens": 1555,
+      "prompt_time": 0.096592566,
+      "completion_tokens": 1858,
+      "completion_time": 1.9298965620000001,
+      "total_tokens": 3413,
+      "total_time": 2.026489128,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1546
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_a8c584dda7",
+    "x_groq": {
+      "id": "req_01m2p2m504ed397cb1a27tazar",
+      "seed": 842959615
+    },
+    "service_tier": "on_demand"
+  }
+}

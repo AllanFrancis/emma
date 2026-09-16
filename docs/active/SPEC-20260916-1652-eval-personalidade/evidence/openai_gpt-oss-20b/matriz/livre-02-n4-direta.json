@@ -1,0 +1,165 @@
+{
+  "id": "livre-02",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "direta",
+  "nivel": 4,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-16T21:22:46.821Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 4. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Conversa livre. Cenario: Open conversation. Follow whatever the student brings up.\nTom: direta e sem rodeios. Cobra a repeticao. Nunca ofende, humilha nem usa palavrao.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "Sorry, my english is very bad"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-439cb7ea-996f-4f8b-9c54-b430d23b7d19",
+    "object": "chat.completion",
+    "created": 1789593784,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"I hear you're concerned about your English skills. What areas do you find most challenging?\",\"reply_pt\":\"Eu percebo que você está preocupado com suas habilidades em inglês. Quais áreas você acha mais difíceis?\",\"instruction_pt\":\"Conte-me algo que você gosta de fazer em seu tempo livre.\",\"corrections\":[],\"suggestion_en\":\"I like reading books, especially mysteries.\",\"suggestion_pt\":\"Eu gosto de ler livros, especialmente mistérios.\",\"words\":[],\"focus\":\"\",\"next_action\":\"reply\"}",
+          "reasoning": "We need to produce JSON following schema. The student says \"Sorry, my english is very bad\". We respond with corrections if needed, but the phrase is simple. Let's analyze.\n\nOriginal: \"Sorry, my english is very bad\" - grammar: \"english\" should be capitalized? But we don't correct capitalization. Also \"my english\" -> \"my English\" but capital letter not needed. But grammar: \"my english is very bad\" is fine? Should be \"My English is very bad.\" It's acceptable. However \"Sorry\" maybe unnecessary. No corrections needed.\n\nBut maybe we can point out \"english\" should be capitalized? But we cannot change capitalization because the instruction: \"não corrija maiuscula, pontuacao nem grafia\" - we should not correct spelling or capitalization. So no corrections.\n\nWe need reply: first respond to meaning: The student says they think their English is bad.\n\nWe need to ask a question in English, ending with question. So reply_en: maybe \"I hear you're concerned about your English skills. What areas do you find most challenging?\" That's okay. Must end with question.\n\nreply_pt: translation.\n\ninstruction_pt: \"Continue conversando, descreva algo que você gosta\" or \"Conte-me algo que você gosta de fazer\". We need to give instruction.\n\nnext_action: \"reply\" because we want them to reply.\n\nsuggestion_en: maybe \"I'm learning English too\" etc. But at level 4. Provide suggestion.\n\nsuggestion_pt: translation.\n\nwords: maybe 0, since no new words.\n\ncorrections: empty array.\n\nfocus: empty.\n\nLet's produce JSON.\n\nCheck fields: reply_en, reply_pt, instruction_pt, corrections, suggestion_en, suggestion_pt, words, focus, next_action.\n\nAll required. Use compact formatting.\n\nLet's craft:\n\nreply_en: \"I hear you're concerned about your English skills. What areas do you find most challenging?\" ends with ?. Good.\n\nreply_pt: \"Eu percebo que você está preocupado com suas habilidades em inglês. Quais áreas você acha mais difíceis?\" ends with ?. Ok.\n\ninstruction_pt: \"Conte-me algo que você gosta de fazer em seu tempo livre.\" (or \"Continue conversando, fale sobre um hobby\").\n\nnext_action: \"reply\"\n\nsuggestion_en: \"I like reading books, especially mysteries.\" (A short model sentence.)\n\nsuggestion_pt: \"Eu gosto de ler livros, especialmente mistérios.\"\n\nwords: empty array.\n\nfocus: empty.\n\ncorrections: empty array.\n\nMake sure all strings properly escaped JSON. No newlines? JSON can have newline? But compact formatting recommended. So no newlines inside string unless they want. We'll keep simple.\n\nLet's output."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.191344556,
+      "prompt_tokens": 1534,
+      "prompt_time": 0.087301524,
+      "completion_tokens": 670,
+      "completion_time": 0.714672671,
+      "total_tokens": 2204,
+      "total_time": 0.801974195,
+      "completion_tokens_details": {
+        "reasoning_tokens": 553
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_24bfb4a850",
+    "x_groq": {
+      "id": "req_01m2p1m3f7etprcncrs0tdv0s2",
+      "seed": 906720872
+    },
+    "service_tier": "on_demand"
+  }
+}

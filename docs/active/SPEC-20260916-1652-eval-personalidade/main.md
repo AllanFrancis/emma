@@ -91,9 +91,9 @@ existem para impedir. Um número num relatório se justifica; uma asserção que
 
 - [x] O comparador de matriz se comporta como especificado: reconhece invariância violada, diferença ausente e desequilíbrio de teto entre tons, em casos de teste sem gastar API (2026-09-16 17:15, commit `c3ecccf`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --self-test`
 - [x] O subconjunto da matriz é declarado como dado versionado, cobre os 4 contextos e inclui casos de controle, validado sem gastar API (2026-09-16 17:15, commit `c3ecccf`, verify: exit 0) | verify: `node scripts/eval/validate.mjs --matriz`
-- [ ] Matriz executada: cada fala do subconjunto tem as 4 células {nível 1, nível 4} × {tranquila, direta} com evidência persistida | verify: `node scripts/eval/grade.mjs --matriz --assert-completo`
+- [x] Matriz executada: cada fala do subconjunto tem as 4 células {nível 1, nível 4} × {tranquila, direta} com evidência persistida (2026-09-16 17:52, commit `0e870ef`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --matriz --assert-completo`
 - [ ] Invariância pedagógica: `corrections[].suggested`, `category` e `focus` idênticos nas 4 células da mesma fala | verify: `node scripts/eval/grade.mjs --matriz --assert-invariancia`
-- [ ] Diferença de estilo: `reply_en` e `explanation_pt` mensuravelmente distintos entre tranquila e direta | verify: `node scripts/eval/grade.mjs --matriz --assert-diferenca`
+- [x] Diferença de estilo: `reply_en` e `explanation_pt` mensuravelmente distintos entre tranquila e direta (2026-09-16 17:52, commit `0e870ef`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --matriz --assert-diferenca`
 - [ ] Nenhum tom corrige mais itens que o outro para a mesma fala e o mesmo nível | verify: `node scripts/eval/grade.mjs --matriz --assert-teto`
 - [ ] As 13 checagens do contrato v2 seguem verdes sobre as saídas da matriz — a matriz não pode ter regredido o que a SPEC-20260916-1450 conquistou | verify: `node scripts/eval/grade.mjs --assert-contract`
 - [ ] Comparação v4→v5 nas 7 falas que falharam, com as duas evidências lado a lado e o veredito de cada caso | verify: `node scripts/eval/grade.mjs --comparar-prompt`
