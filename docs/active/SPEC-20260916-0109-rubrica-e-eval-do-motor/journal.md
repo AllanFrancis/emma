@@ -2,10 +2,10 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 02:01
-**Onde tô:** 34 turnos gravados com prompt v3 (20b n=19, 120b n=15); C7 do grader tinha bug e foi consertado. Sem vencedor limpo entre os modelos ainda.
-**Próximo passo:** completar as rodadas até igualar n e cobrir `small-talk` e `livre` (TPM rende ~5–9 por vez, `run.mjs` retoma sozinho); só então o relatório do critério 6.
-**Última decisão:** prompt v3 com distinção em 3 vias (atrapalha / padrão sistemático / só mais idiomático); baselines v1 e v2 preservados em `evidence/_baseline-prompt-v*`.
+**Última atualização:** 2026-09-16 02:10
+**Onde tô:** 45/45 nos dois modelos, `relatorio.md` escrito e recomendação (`gpt-oss-20b`) registrada no LOG. Falta só a leitura humana do critério 6.
+**Próximo passo:** usuário lê `relatorio.md` + amostras de `evidence/` e julga os 4 critérios subjetivos; com o aceite, `check 6` e `close`.
+**Última decisão:** recomendado `gpt-oss-20b` para a Fase 1 — erra por omissão, não por corrigir quem não errou, e teve zero falhas de contrato contra 2 do 120b.
 **Bloqueio atual:** nenhum — `GROQ_API_KEY` só é necessária a partir da rodada real (fase 5)
 **Se retomar, ler:** main.md desta SPEC + `.scratch/prototipo/_decoded/app-inline-1.html` (protótipo decodificado)
 
@@ -16,8 +16,8 @@
 | 2 | Contrato do turno (8 campos) como JSON Schema | concluído | 2026-09-16 01:21 |
 | 3 | Dataset ≥40 falas com erros típicos de interferência do português | concluído | 2026-09-16 01:30 |
 | 4 | `validate.mjs` — validação estrutural sem gastar API | concluído | 2026-09-16 01:30 |
-| 5 | `run.mjs` + rodada real contra ≥2 modelos | em progresso | 2026-09-16 02:01 |
-| 6 | `grade.mjs` + relatório comparativo + recomendação | em progresso | 2026-09-16 02:01 |
+| 5 | `run.mjs` + rodada real contra ≥2 modelos | concluído | 2026-09-16 02:09 |
+| 6 | `grade.mjs` + relatório comparativo + recomendação | em progresso | 2026-09-16 02:10 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 - fato: protótipo = 74KB de JS vanilla, `FLOW` com as 21 telas, contrato de 8 campos, `QUOTA = 8`, chave no browser e JSON por fatiamento de chaves — detalhe completo em `docs/features/dialogo.md`.
@@ -47,10 +47,10 @@
 - `docs/active/SPEC-20260916-0109-rubrica-e-eval-do-motor/{main.md,journal.md}`, `docs/claims/SPEC-20260916-0109-rubrica-e-eval-do-motor.md`, `docs/programs/emma.md`
 - `scripts/eval/rubric.md`, `scripts/eval/turn-schema.json` — fases 1 e 2
 - `scripts/eval/dataset.jsonl` (45 falas), `scripts/eval/validate.mjs` — fases 3 e 4
-- `scripts/eval/run.mjs`, `scripts/eval/grade.mjs` — fases 5 e 6 (código pronto; rodada real pendente)
+- `scripts/eval/run.mjs`, `scripts/eval/grade.mjs`, `relatorio.md`, `evidence/` (90 turnos + baselines) — fases 5 e 6
 
 ### Onde parei
-20b: C4 88% · C5 91% · C7 89% (2 instruções saíram em inglês). 120b: C4 67% · C5 100% · C7 100%, mas 1 chamada morreu com `json_validate_failed`. Falta igualar n, cobrir `small-talk`/`livre` e a leitura humana.
+45/45 nos dois. 20b: C4 88 · C5 86 · C7 89, zero falhas de contrato. 120b: C4 71 · C5 96 · C7 93, mas 2 `json_validate_failed` e sobre-correções ruins (corrigiu maiúscula de "english" em app de fala). Falta a leitura humana.
 
 ### Sessões (máx 5 linhas + 1 agregada)
 - 2026-09-16 01:09 — init do sistema v4, dissecação do protótipo, 8 decisões de produto, abertura desta SPEC.
@@ -112,3 +112,11 @@
 ## 2026-09-16 02:01 — [descoberta] C7 corrigido e reverificado: self-test 0 falhas, e a previsao manual bateu (120b 15/15 = 100%). O 20b deu 89%, nao os 95% que eu previa - 2 falhas em 19, nao 1, porque minha inspecao manual so cobrira os 10 primeiros arquivos. As DUAS sao reais: cafe-06 'Use a question word order: verb before subject' e hotel-05 'Use am instead of have to indicate your age and include years old' - instrucoes inteiramente em INGLES, justamente ao explicar gramatica. QUADRO ATUAL (n diferente, nao e empate direto): 20b n=19 -> C4 88%, C5 91%, C7 89%. 120b n=15 -> C4 67%, C5 100%, C7 100%. LEITURA: nao ha vencedor limpo. O 20b sobre-corrige menos; o 120b nao violou bilinguismo nenhuma vez e corrige sempre que precisa. Como o usuario classificou bilinguismo como requisito CENTRAL e nao opcional, a vantagem do 120b pesa mais do que a tabela sugere a primeira vista. Antes de recomendar qualquer modelo falta: (a) igualar o n dos dois, (b) cobrir small-talk e livre, que nenhum dos dois alcancou ainda, (c) leitura humana dos criterios subjetivos. Nao ha recomendacao ate la.
 
 ⎿ commit ffe0ac0+dirty · 4 files changed, 54 insertions(+), 14 deletions(-)
+
+## 2026-09-16 02:09 — [nota] Rodadas COMPLETAS: 45/45 nas duas, mesmo dataset e mesmo prompt v3, n identico - agora a comparacao e legitima. TABELA FINAL: 20b -> C2 98, C4 88, C5 86, C7 89, C8 84. 120b -> C2 100, C4 71, C5 96, C7 93, C8 84. C1/C3/C6/C9/C10 em 100% nos dois. O trade-off visto com 10 falas se confirmou com 45: o 20b peca por OMISSAO (deixa erro passar) e o 120b por EXCESSO (corrige quem nao errou). Confiabilidade: 2 ocorrencias de json_validate_failed no 120b (cafe-01 e talk-01) contra ZERO no 20b - em producao cada uma seria um turno morto na cara do aluno. Custo: TPM do tier gratuito rendeu entre 3 e 13 chamadas por ciclo; foram necessarios ~10 ciclos para 90 chamadas. Falta so o critério 6: escrever o relatorio e o usuario ler as evidencias para julgar os 5 criterios subjetivos, que nenhuma checagem mecanica alcanca.
+
+⎿ commit 4e7525c
+
+## 2026-09-16 02:10 — [decisão] RECOMENDACAO: openai/gpt-oss-20b para a Fase 1. Relatorio completo em relatorio.md. A tabela mecanica favorece o 120b em C5 (96 vs 86) e C7 (93 vs 89), mas o CONTEUDO das falhas inverte a leitura: as sobre-correcoes do 120b incluem corrigir a MAIUSCULA de 'english' em 'Sorry, my english is very bad' e em 'I don't know how to say this in english', e corrigir 'can you repeat please' de um aluno que acabou de dizer que nao entendeu. Corrigir grafia num app de conversa FALADA e irrelevante por definicao, e corrigir quem expressou vergonha do proprio ingles e o oposto de 'fluencia antes de perfeicao'. As omissoes do 20b (auxiliar ausente em 'What you do?', 'work with marketing', falso cognato 'doubt') sao falhas de ENSINO, nao de tato: aluno nao corrigido aprende devagar, aluno corrigido na hora errada desiste. Somando: 20b erra para o lado certo, teve ZERO falhas de contrato contra 2 json_validate_failed do 120b, e e mais barato e mais rapido sob o teto de TPM. O deficit de C5 do 20b e o mais atacavel por prompt - a propria evolucao v1->v2->v3 provou que esse numero se move por instrucao. RECOMENDACAO NAO FECHA O ASSUNTO: vale para a Fase 1; se a leitura humana achar o 20b raso, o 120b volta com prompt que proiba correcao de grafia. DOIS REQUISITOS DE ARQUITETURA caem na Fase 1 a partir daqui: (1) fallback obrigatorio para json_validate_failed, caindo no scriptedTurn do prototipo, turno nunca morre na tela; (2) o prompt precisa declarar que a entrada e FALA TRANSCRITA, senao o modelo corrige maiuscula e pontuacao que nao existem em conversa.
+
+⎿ commit 4e7525c+dirty · 1 file changed, 5 insertions(+), 1 deletion(-)

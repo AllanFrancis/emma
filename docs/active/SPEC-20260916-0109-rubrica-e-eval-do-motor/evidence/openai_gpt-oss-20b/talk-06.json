@@ -1,0 +1,115 @@
+{
+  "id": "talk-06",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T06:04:03.764Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Puxar conversa. Cenario: You and the student are chatting casually, as two people who just met.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: corrija em correction_pt. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe correction_pt vazia e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nResponda no formato JSON definido pelo schema."
+      },
+      {
+        "role": "user",
+        "content": "It's very hot today, no?"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "correction_pt",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "correction_pt": {
+              "type": "string",
+              "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-b519d754-ba4d-4f6e-9cfd-5f18235eaaa6",
+    "object": "chat.completion",
+    "created": 1789538662,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"It’s really hot today, isn’t it? I was thinking of going to the beach to cool off. What are you planning to do to stay cool?\",\"reply_pt\":\"Está realmente quente hoje, não é? Eu estava pensando em ir à praia para me refrescar. O que você planeja fazer para se refrescar?\",\"instruction_pt\":\"Use a tag question apropriada no final da frase, como \\\"isn’t it?\\\"\",\"correction_pt\":\"Em vez de \\\"no?\\\", diga \\\"isn't it? – Tag question correta para ‘It is’\",\"focus\":\"Tag question correta\",\"suggestion_en\":\"Yes, it's hot. I'm staying indoors and drinking a cold soda.\",\"suggestion_pt\":\"Sim, está quente. Estou ficando em casa e bebendo uma bebida gelada.\",\"words\":[\"tag question\",\"beach\",\"cool\"]}",
+          "reasoning": "We need to respond as Emma. The user says: \"It's very hot today, no?\" We should reply first to the meaning: acknowledging the hot weather. Then maybe ask a question in English, like \"Do you prefer staying indoors or going for a walk?\"\n\nWe need to consider corrections: The student's sentence \"It's very hot today, no?\" has a tag question \"no?\" The correct tag should be \"isn't it?\" because subject \"it\" and verb \"is\". The tag should use opposite polarity: \"isn't it?\" Also \"no?\" is not standard. So we should correct that. The correction_pt should note: \"em vez de 'no?', diga 'isn't it? – Tag question correta para 'It is'\". Also maybe we want to correct the use of a tag question in general. Also \"very hot\" is fine. So 1 correction.\n\nWe should produce focus: \"Tag question correta\". Instruction_pt: \"Use a tag question apropriada no final da frase.\" We should produce reply_en: something like \"It's really hot today, isn't it? I was thinking of going to the beach. What do you plan to do to stay cool?\" We need to end with a question.\n\nWe also need reply_pt: translation of reply_en. Suggestion_en: a short reply that the student could say: \"Yeah, it's hot, I'm going to stay indoors.\" Or maybe \"Yes, it's hot. I'm going to drink iced tea.\" Suggestion_pt: translation.\n\nWords: maybe \"tag question\", \"beach\", \"cool\". Let's pick up to 3.\n\nFocus: \"Tag question correta\".\n\nNow produce JSON with all fields.\n\nCheck the schema: all fields present.\n\nLet's craft.\n\nCheck the JSON: no trailing commas, compact.\n\nLet's produce."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.285377114,
+      "prompt_tokens": 877,
+      "prompt_time": 0.047347101,
+      "completion_tokens": 557,
+      "completion_time": 0.711686566,
+      "total_tokens": 1434,
+      "total_time": 0.759033667,
+      "completion_tokens_details": {
+        "reasoning_tokens": 366
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_99996fee8e",
+    "x_groq": {
+      "id": "req_01m2md1x99eg7ak82xbz7fmy86",
+      "seed": 1648670579
+    },
+    "service_tier": "on_demand"
+  }
+}
