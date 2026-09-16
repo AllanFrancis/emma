@@ -2,8 +2,8 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 01:31
-**Onde tô:** os 6 artefatos de `scripts/eval/` escritos e exercitados; 4 dos 6 critérios carimbados por `verify` (exit 0). Falta a rodada real e a revisão humana.
+**Última atualização:** 2026-09-16 01:35
+**Onde tô:** ferramental da Fase 0 commitado em `7ff2961`; 4/6 critérios carimbados por `verify`. `close --dry` diz NÃO pronto — faltam os critérios 1 e 6, ambos `evidence: manual @allan`.
 **Próximo passo:** rodada real — exportar `GROQ_API_KEY` e rodar `node scripts/eval/run.mjs --model <id>` para ≥2 modelos, depois `grade.mjs` e o relatório com a recomendação
 **Última decisão:** `evidence/` vive na pasta da SPEC (formats.md §9), não em `scripts/` — o `run.mjs` descobre o caminho sozinho em vez de hardcodear o id da SPEC
 **Bloqueio atual:** nenhum — `GROQ_API_KEY` só é necessária a partir da rodada real (fase 5)
@@ -54,6 +54,7 @@ Ferramental verde sem gastar cota (`validate` 0/0 · `run --dry` 45 payloads · 
 
 ### Sessões (máx 5 linhas + 1 agregada)
 - 2026-09-16 01:09 — init do sistema v4, dissecação do protótipo, 8 decisões de produto, abertura desta SPEC.
+- 2026-09-16 01:34 — fases 1–4 concluídas, 5–6 com código verde; 6 artefatos em `scripts/eval/`; commits `43aee0f` e `7ff2961`.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -83,3 +84,7 @@ Ferramental verde sem gastar cota (`validate` 0/0 · `run --dry` 45 payloads · 
 
 - PASS: Runner executa o dataset contra ≥2 modelos e persiste as sa…
 - PASS: Checagens mecânicas dos 9 critérios implementadas e verdes …
+
+## 2026-09-16 01:35 — [nota] Fases 3 a 6: dataset.jsonl (45 falas em 4 contextos, 17 casos de controle), validate.mjs, run.mjs e grade.mjs escritos e exercitados sem gastar cota - validate 0/0, run --dry monta 45 payloads, grade --self-test 5 casos e 10 checagens sem falha. specctl verify carimbou 4 dos 6 criterios. DECISAO: evidence/ vive na pasta da SPEC (formats.md secao 9), nao em scripts/; o run.mjs descobre o caminho varrendo docs/active em vez de hardcodear o id. Commitado em 7ff2961. close --dry: NAO pronto, faltam criterios 1 e 6 (ambos evidence: manual) - nao registrei conclusao no LOG nem marquei R.7 nas features porque seria declarar entregue uma SPEC em voo. RISCOS ABERTOS: (a) os model ids moonshotai/kimi-k2-instruct e openai/gpt-oss-20b vieram dos exemplos da doc do Groq e nao foram confirmados contra o catalogo vivo; (b) maxItems no campo words pode ser recusado pelo strict mode.
+
+⎿ commit 7ff2961+dirty · 1 file changed, 2 insertions(+), 1 deletion(-)
