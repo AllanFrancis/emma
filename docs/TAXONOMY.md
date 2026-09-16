@@ -8,3 +8,7 @@
 
 - dialogo — motor de conversa da Emma: system prompt, contrato do turno e catálogo de missões (aliases proibidos: chat→dialogo, conversa→dialogo, motor→dialogo)
 - avaliacao — estimativa e evolução do nível de proficiência do aluno por rubrica auditável (aliases proibidos: nivel→avaliacao, diagnostico→avaliacao, rubrica→avaliacao)
+- pedagogia — decide O QUE ensinar: políticas de nível, suporte em pt-BR e correção, máquina de missão e o PedagogicalIntent (aliases proibidos: nucleo→pedagogia, intent→pedagogia, politica→pedagogia)
+- personalidade — decide COMO comunicar: tom, intensidade e encorajamento, sem nunca alterar a verdade pedagógica (aliases proibidos: tom→personalidade, estilo→personalidade, persona→personalidade)
+- onboarding — primeira experiência: telas de entrada, captura do perfil pedagógico e primeira vitória concreta (aliases proibidos: cadastro→onboarding, perguntas→onboarding, setup→onboarding)
+- progresso — sessões, sequência de dias, palavras praticadas, resumo de lição e a instrumentação da métrica central (aliases proibidos: metricas→progresso, streak→progresso, ofensiva→progresso, resumo→progresso)

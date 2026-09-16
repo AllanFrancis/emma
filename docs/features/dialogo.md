@@ -13,7 +13,10 @@
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
 ### Planejadas (future/)
-—
+- SPEC-20260916-1652-eval-personalidade | Eval de personalidade — mesma pedagogia, estilos diferentes | Compartilhado com `personalidade`; ataca por prompt as 4 omissões e as 3 explicações em inglês
+- SPEC-20260916-1652-eval-conversa-multiturno | Eval de conversa multiturno | Mede coerência longitudinal, que turno isolado não mede
+- SPEC-20260916-1652-motor-de-dialogo | Motor de diálogo — server function, strict JSON e fallback | Tira a chave do cliente e garante que um turno nunca morre na tela
+- SPEC-20260916-1652-conversa-e-missoes | Conversa e missões — a tela que é o produto | Traz o catálogo de missões de volta ao domínio
 
 ## Estado atual
 
