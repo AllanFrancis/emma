@@ -1,0 +1,163 @@
+{
+  "id": "hotel-09",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T20:19:17.996Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "Can you explain me where is the elevator?"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-4ad32154-01a8-49bb-ae69-8ee9e6bec30f",
+    "object": "chat.completion",
+    "created": 1789589975,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Sure! The elevator is just down the hall, past the reception desk. Would you like me to walk you to it?\",\"reply_pt\":\"Claro! O elevador fica na sala debaixo do corredor, depois da recepção. Você gostaria que eu lhe mostrasse o caminho?\",\"instruction_pt\":\"Use a forma sugerida e pergunte se precisa de mais ajuda.\",\"corrections\":[{\"original\":\"explain me\",\"suggested\":\"explain to me\",\"explanation_pt\":\"Use 'to' antes de 'me' ao pedir explicação\",\"category\":\"preposition\"},{\"original\":\"explain me\",\"suggested\":\"tell me\",\"explanation_pt\":\"Para pedir direções, use 'tell me' em vez de 'explain'\",\"category\":\"vocabulary\"}],\"suggestion_en\":\"Just say 'Can you tell me where the elevator is?','\",\"suggestion_pt\":\"Apenas diga 'Can you tell me where the elevator is?','\",\"words\":[\"elevator\",\"down the hall\",\"past the reception desk\"],\"focus\":\"Use 'tell' or 'explain to' ao pedir direções.\",\"next_action\":\"reply\"}",
+          "reasoning": "We need to respond as Emma, receptionist. The student says: \"Can you explain me where is the elevator?\" Need to interpret meaning: asking for directions to elevator. Provide reply in English, ask question. Provide corrections: up to 3 high-value corrections. We need to parse the student's sentence:\n\n\"Can you explain me where is the elevator?\"\n\nIssues:\n1) \"explain me\" - wrong, should be \"explain to me\" or just \"tell me\". So category: grammar or preposition? It's preposition: wrong preposition, missing \"to\". So correction: original \"explain me\" -> suggested \"explain to me\" or \"tell me\". It's a preposition issue.\n\n2) Word order: \"where is the elevator\" is okay as question, but when embedding it: \"where is the elevator\" after \"explain to me\" is correct. So maybe no word order issue.\n\n3) \"explain me\" is also a direct object missing preposition, which is a grammar issue.\n\nAlso, the student used \"explain me where is the elevator?\" maybe they want \"explain to me where the elevator is\" - but \"explain where the elevator is\" is fine.\n\nLet's produce correction: original \"explain me\" -> suggested \"explain to me\". Category: preposition. Explanation: \"Use 'to' before 'me'\".\n\nAlso maybe \"Can you explain me where is the elevator?\" might be \"Can you explain where the elevator is?\" So could also be a word order issue. But it's a minor.\n\nWe can give up to 3 corrections; we have one clear correction.\n\nCheck for any other issues: \"explain me where is the elevator?\" The phrase \"explain me\" is wrong. Also \"where is the elevator\" is okay. But maybe \"explain me where is the elevator\" is a bit unnatural; better: \"tell me where the elevator is\". So could also correct \"explain me\" to \"tell me\". Category grammar maybe.\n\nAlso \"explain me\" is not a common phrase; we can correct to \"tell me\" (vocabulary/phrase). Let's include that too: original \"explain me\" -> suggested \"tell me\". Category: vocabulary or register? It's a different phrase.\n\nWe can include two corrections. Up to 3.\n\nNow the reply: \"Sure, the elevator is just down the hall past the reception desk. Do you need me to show you?\" Something like that. End with a question. Provide reply_pt translation.\n\nFocus: short improvement point: \"Use 'tell' instead of 'explain' when asking for directions\" maybe.\n\nInstruction_pt: \"Use the suggested phrase and ask for clarification.\" Provide next_action: reply.\n\nWords: maybe \"elevator\", \"down the hall\", \"past the reception desk\".\n\nLet's construct JSON accordingly."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.152905191,
+      "prompt_tokens": 1369,
+      "prompt_time": 0.080543393,
+      "completion_tokens": 838,
+      "completion_time": 0.90421568,
+      "total_tokens": 2207,
+      "total_time": 0.984759073,
+      "completion_tokens_details": {
+        "reasoning_tokens": 590
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_334cc21c60",
+    "x_groq": {
+      "id": "req_01m2nxzvpvemgrvt80wy19ce2f",
+      "seed": 323539189
+    },
+    "service_tier": "on_demand"
+  }
+}

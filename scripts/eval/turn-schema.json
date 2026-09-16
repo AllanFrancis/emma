@@ -7,11 +7,12 @@
       "reply_en",
       "reply_pt",
       "instruction_pt",
-      "correction_pt",
+      "corrections",
       "suggestion_en",
       "suggestion_pt",
       "words",
-      "focus"
+      "focus",
+      "next_action"
     ],
     "properties": {
       "reply_en": {
@@ -26,9 +27,41 @@
         "type": "string",
         "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
       },
-      "correction_pt": {
-        "type": "string",
-        "description": "Correcao em portugues no formato 'em vez de X, diga Y - motivo'. No maximo 3 pontos de alto valor, e so quando melhorarem a comunicacao. String vazia quando nao ha o que corrigir."
+      "corrections": {
+        "type": "array",
+        "maxItems": 3,
+        "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["original", "suggested", "explanation_pt", "category"],
+          "properties": {
+            "original": {
+              "type": "string",
+              "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+            },
+            "suggested": {
+              "type": "string",
+              "description": "A forma natural em ingles que substitui o trecho acima."
+            },
+            "explanation_pt": {
+              "type": "string",
+              "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "grammar",
+                "vocabulary",
+                "word_order",
+                "preposition",
+                "false_friend",
+                "register"
+              ],
+              "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+            }
+          }
+        }
       },
       "suggestion_en": {
         "type": "string",
@@ -47,6 +80,11 @@
       "focus": {
         "type": "string",
         "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+      },
+      "next_action": {
+        "type": "string",
+        "enum": ["reply", "retry", "continue_mission", "complete_mission"],
+        "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
       }
     }
   },

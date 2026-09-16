@@ -42,6 +42,9 @@ export function validateAgainstSchema(value, schema, location = "$") {
   if (checkType && !checkType(value)) {
     return [`${location}: expected ${schema.type}`];
   }
+  if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
+    return [`${location}: '${value}' outside enum {${schema.enum.join(", ")}}`];
+  }
   if (schema.type === "object") return validateObject(value, schema, location);
   if (schema.type === "array") return validateArray(value, schema, location);
   return [];
@@ -50,4 +53,44 @@ export function validateAgainstSchema(value, schema, location = "$") {
 export function validateTurn(turn, schemaDocument) {
   const schema = schemaDocument.schema ?? schemaDocument;
   return validateAgainstSchema(turn, schema);
+}
+
+// A fala do aluno vem de transcricao: maiuscula, pontuacao final e o tipo de apostrofo
+// variam sem que nada mude no que foi dito. Normalizar isso evita reprovar uma correcao
+// legitima por diferenca de grafia que a fala nao carrega.
+function normalizeForEvidence(text) {
+  return String(text ?? "")
+    .toLowerCase()
+    .replace(/[‘’ʼ]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripEdgePunctuation(text) {
+  return text.replace(/^[\s"'.,!?;:]+/, "").replace(/[\s"'.,!?;:]+$/, "");
+}
+
+/**
+ * Toda correcao tem de citar evidencia: `original` precisa ocorrer literalmente na fala
+ * do aluno. Correcao sem evidencia e saida invalida, nao correcao fraca — o mesmo
+ * principio que a rubrica de nivel ja aplica (DEC-20260916-0314).
+ */
+export function validateEvidence(turn, utterance) {
+  const errors = [];
+  const corrections = turn?.corrections;
+  if (!Array.isArray(corrections)) return errors;
+  const haystack = normalizeForEvidence(utterance);
+  corrections.forEach((correction, index) => {
+    const location = `$.corrections[${index}].original`;
+    const needle = stripEdgePunctuation(normalizeForEvidence(correction?.original));
+    if (needle === "") {
+      errors.push(`${location}: vazio — correcao sem evidencia citada`);
+      return;
+    }
+    if (!haystack.includes(needle)) {
+      errors.push(`${location}: '${correction.original}' nao ocorre na fala do aluno`);
+    }
+  });
+  return errors;
 }
