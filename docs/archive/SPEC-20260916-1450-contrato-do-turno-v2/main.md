@@ -1,13 +1,13 @@
 # SPEC-20260916-1450: Contrato do turno v2 — corrections[] estruturado
 
-**Status:** active
+**Status:** done
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 14:50
 **Ativada:** 2026-09-16 14:50
-**Concluída:** —
+**Concluída:** 2026-09-16 16:43
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `f3bd0b1`
 **Keywords:** contrato-do-turno, corrections, next-action, schema, eval
 **Features:** dialogo
 **Branch:** feature/contrato-do-turno-v2
