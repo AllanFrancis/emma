@@ -6,8 +6,5 @@
 
 ## Áreas
 
-<!-- Exemplos — remova ao preencher:
-- api/auth — autenticação e sessão do backend (aliases proibidos: login→api/auth, sso→api/auth)
-- web/checkout — fluxo de compra no frontend (aliases proibidos: carrinho→web/checkout)
-- infra/ci — pipelines de build, teste e deploy (aliases proibidos: actions→infra/ci, gha→infra/ci)
--->
+- dialogo — motor de conversa da Emma: system prompt, contrato do turno e catálogo de missões (aliases proibidos: chat→dialogo, conversa→dialogo, motor→dialogo)
+- avaliacao — estimativa e evolução do nível de proficiência do aluno por rubrica auditável (aliases proibidos: nivel→avaliacao, diagnostico→avaliacao, rubrica→avaliacao)

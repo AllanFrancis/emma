@@ -2,4 +2,7 @@
 
 > GERADO — specctl index — NÃO EDITAR
 
-_Sem features ainda._
+## geral
+
+- **avaliacao** — rubrica, nível, diagnóstico, evidências, proficiência
+- **dialogo** — motor de diálogo, contrato do turno, system prompt, personalidade, missões, groq
