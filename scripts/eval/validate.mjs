@@ -305,8 +305,10 @@ function conferirEnum(propriedade, esperado, nome) {
   }
   const faltando = esperado.filter((v) => !propriedade.enum.includes(v));
   const sobrando = propriedade.enum.filter((v) => !esperado.includes(v));
-  if (faltando.length > 0) erros.push(`turn-schema.json: '${nome}' sem os valores ${faltando.join(", ")}`);
-  if (sobrando.length > 0) erros.push(`turn-schema.json: '${nome}' com valores extras ${sobrando.join(", ")}`);
+  if (faltando.length > 0)
+    erros.push(`turn-schema.json: '${nome}' sem os valores ${faltando.join(", ")}`);
+  if (sobrando.length > 0)
+    erros.push(`turn-schema.json: '${nome}' com valores extras ${sobrando.join(", ")}`);
 }
 
 // Prova que cada classe de violacao do contrato e RECUSADA. Um validador que aceita

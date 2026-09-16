@@ -114,8 +114,7 @@ const CHECKS = [
     id: "C12",
     name: "next_action coerente com o caso",
     criterion: "nao cobra repeticao de quem nao errou",
-    check: (turn, record) =>
-      record.tipo_erro !== "nenhum" ? null : turn.next_action !== "retry",
+    check: (turn, record) => (record.tipo_erro !== "nenhum" ? null : turn.next_action !== "retry"),
   },
 ];
 
@@ -449,7 +448,9 @@ function assertContract() {
       semRegistro > 0;
     console.log(`${reprovou ? "ERRO  " : "ok    "}${linha}`);
     if (files.length < MINIMO_TURNOS) {
-      console.log(`      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`);
+      console.log(
+        `      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`,
+      );
     }
     if (semRegistro > 0) {
       console.log(`      ${semRegistro} evidencia(s) sem fala correspondente no dataset`);
