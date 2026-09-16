@@ -2,11 +2,11 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 15:01
-**Onde tô:** contrato v2 implementado; 5 de 7 critérios estampados pela ferramenta, tudo verificável offline.
-**Próximo passo:** com `GROQ_API_KEY` no ambiente: `node scripts/eval/run.mjs --model openai/gpt-oss-20b`, depois `grade.mjs --assert-contract`.
-**Última decisão:** `next_action` é proposta do modelo, não decisão — quem confronta com a etapa real da missão é a SPEC 1.1.
-**Bloqueio atual:** `GROQ_API_KEY` ausente no ambiente — trava o critério 6 (rodada real) e, por dependência, o 7 (leitura humana).
+**Última atualização:** 2026-09-16 16:30
+**Onde tô:** rodada 45/45 feita, 6 de 7 critérios estampados; falta só a leitura humana do critério 7.
+**Próximo passo:** apresentar ao @allan a sobre-correção de `hotel-07`, as 4 omissões e as 3 `explanation_pt` em inglês, para o veredito do critério 7.
+**Última decisão:** rate limit não é falha de contrato — o gate classifica por `erro.error` e reporta transitórias à parte.
+**Bloqueio atual:** critério 7 aguarda julgamento humano (R.6.2 — não é meu para marcar).
 **Se retomar, ler:** `main.md` desta SPEC e a entrada `[decisão]` de 15:01 no LOG.
 
 ### Fases
@@ -17,8 +17,8 @@
 | 3 | `validate.mjs` — asserções do v2 + `--self-test` (13 casos) | concluído | 2026-09-16 15:00 |
 | 4 | `run.mjs` — prompt v4 | concluído | 2026-09-16 15:00 |
 | 5 | `grade.mjs` — C3 exato, C11, C12, `--assert-contract` | concluído | 2026-09-16 15:00 |
-| 6 | Rodada real de 45 falas no `gpt-oss-20b` | bloqueado | 2026-09-16 15:01 |
-| 7 | Leitura humana: tato e sobre-correção vs v3 | pendente | 2026-09-16 15:01 |
+| 6 | Rodada real de 45 falas no `gpt-oss-20b` | concluído | 2026-09-16 16:30 |
+| 7 | Leitura humana: tato e sobre-correção vs v3 | em progresso | 2026-09-16 16:30 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 - fato: passam com exit 0 — `validate.mjs --schema`, `--self-test` (13 casos), `--all` (45 falas/17 controles), `run.mjs --dry` (45 payloads), `grade.mjs --self-test` (15 casos, 12 checagens).
@@ -151,3 +151,78 @@ em C5, mas `countCorrections` devolve `Infinity` para não-array e `Infinity > 0
 C5 para exigir `Array.isArray(turn.corrections) && length > 0` em vez de ajustar a expectativa do
 teste — turno malformado não pode contar como "corrigiu quando havia o que corrigir".
 ⎿ commit 603d025+dirty · 5 files changed, 483 insertions(+), 48 deletions(-)
+
+## 2026-09-16 15:05 — [nota] verify: 0/1 critérios passaram (commit `5c1e824`)
+
+- FAIL: Rodada real de 45 falas em `openai/gpt-oss-20b` sob o contr…
+
+## 2026-09-16 16:28 — [nota] verify: 1/1 critérios passaram (commit `1bae4c0`)
+
+- PASS: Rodada real de 45 falas em `openai/gpt-oss-20b` sob o contr…
+
+## 2026-09-16 16:30 — [unblock] Rodada 45/45 no gpt-oss-20b sob o contrato v2: zero falha de contrato, C11 em 100%, C4 melhora 6 pontos sobre o v3; teto do tier e de TOKENS/min e exigiu backoff
+
+45/45 turnos gravados no `openai/gpt-oss-20b`, zero falha de contrato, zero correção sem
+evidência. `grade.mjs --assert-contract` passa e o critério 6 está estampado.
+
+A rodada NÃO saiu de primeira. O teto do tier gratuito é de TOKENS por minuto, não de
+requisições: a primeira tentativa morreu em 5/45 com `remainingRequests: 995` e
+`remainingTokens: 1207`. A ~1065 tokens por turno, a janela permite 1 ou 2 turnos. O `run.mjs`
+retentava uma única vez com o `retry-after` do servidor (2 a 5 segundos, curto demais para a
+janela refilar) e então abortava a rodada inteira via `stop: true`. Dois ajustes resolveram:
+backoff progressivo de até 6 tentativas com espera mínima de 20s, e pausa adaptativa quando
+`x-ratelimit-remaining-tokens` cai abaixo de 2 turnos. Rate limit também deixou de abortar a
+rodada — com retomada por arquivo, insistir no próximo registro custa menos que reiniciar.
+Erro de CONTRATO, esse sim, continua parando tudo.
+
+O gate também estava errado e foi corrigido: `--assert-contract` contava qualquer entrada em
+`_failures/` como falha. Rate limit é transitório e não diz nada sobre o contrato — contá-lo
+como falha de contrato travaria o critério para sempre. Agora ele classifica pelo
+`erro.error` e reporta as transitórias à parte (5 nesta rodada, todas ignoradas com razão).
+
+COMPARAÇÃO COM O V3 (contrato v1, mesmo modelo, mesmo dataset, relatorio.md da SPEC-20260916-0109):
+
+| checagem | v3 | v2 | delta |
+|---|---|---|---|
+| C1 contrato válido | 100% | 100% | = |
+| C3 teto de 3 correções | heurística | 100% exato | mede de verdade |
+| C4 não corrige controle | 88% | 94% | +6 |
+| C5 corrige quando há | 86% | 86% | = |
+| C7 instrução em português | 89% | 93% | +4 |
+| C8 comprimento por nível | 84% | 82% | -2 (1 turno em 45; ruído) |
+| C11 evidência literal | — | 100% | novo |
+| C12 next_action coerente | — | 100% | novo |
+
+C11 em 100% derruba a dúvida que eu havia registrado: o risco de o modelo parafrasear em vez de
+copiar o trecho literal NÃO se materializou em 33 correções. `corrections[]` também não aumentou
+a sobre-correção — ao contrário, C4 melhorou 6 pontos e o único caso restante é `hotel-07`
+("What time is the breakfast?"), onde o dataset considera o artigo aceitável no contexto de
+hotel. Distribuição de `category` nas 33 correções: grammar 18, preposition 7, vocabulary 4,
+register 2, word_order 1, false_friend 1.
+
+PADRÃO NAS 4 OMISSÕES — vale mais que o número. Em TODAS as quatro, o modelo colocou a forma
+correta em `suggestion_en` em vez de `corrections[]`:
+- `cafe-02` "I want a coffee" -> suggestion_en "I would like a coffee, please."
+- `cafe-08` "Do you have some vegetarian option?" -> suggestion_en "Do you have any vegetarian options?"
+- `talk-06` "It's very hot today, no?" -> suggestion_en "You could say: 'It's very hot today, isn't it?'"
+- `talk-10` "I have a doubt about what you said" -> suggestion_en "Could you tell me which part is confusing?"
+
+Ou seja: o modelo está ensinando, mas roteando pela via (c) do prompt ("comunica bem, ofereça em
+suggestion_en") em vez da via (b) ("revela padrão sistemático, corrija TAMBÉM"). E isso acontece
+justamente em dois casos que o prompt nomeia LITERALMENTE na via (b): "I want a coffee" num balcão
+e o falso cognato "doubt". Nomear o exemplo no prompt não bastou — o modelo prefere a rota gentil.
+É calibração de prompt, não defeito de contrato, e é o alvo natural da SPEC 0.2.
+
+DEFEITO NOVO QUE A ESTRUTURA EXPÔS: 3 das 33 `explanation_pt` estão em INGLÊS — `hotel-05` ("Use
+'am' instead of 'have' for age."), `hotel-07` ("Use 'breakfast' without the article, it's an
+uncountable noun.") e `hotel-10` ("Use present perfect continuous for an action that started in
+the past and continues to now."). A última é pior: usa metalinguagem gramatical em inglês para
+um aluno de nível baixo. Nada no grader checa isso — C7 valida só `instruction_pt`. Com o
+contrato v1 o problema existia igual e era INVISÍVEL, porque a correção era uma string única sem
+checagem de idioma; a estrutura do v2 é que permitiu enxergar. Fica como decisão do usuário
+adicionar C13 (`explanation_pt` em português) nesta SPEC ou em seguida.
+
+Registro de precisão: minha primeira medição de idioma acusou 11 de 33, e estava errada — a
+heurística exigia 2 marcadores de português e super-marcou explicações curtas e legítimas como
+"Use 'hungry' sem 'with'." ou "O verbo deve vir antes do pronome.". O número real é 3.
+⎿ commit d9a948a+dirty · 4 files changed, 62 insertions(+), 14 deletions(-)

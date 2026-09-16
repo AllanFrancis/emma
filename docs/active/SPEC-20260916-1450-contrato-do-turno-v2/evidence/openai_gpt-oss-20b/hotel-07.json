@@ -1,0 +1,163 @@
+{
+  "id": "hotel-07",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T20:18:35.420Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "What time is the breakfast?"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-6e06f353-424d-465d-9493-b6cadf2ffb95",
+    "object": "chat.completion",
+    "created": 1789589933,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Breakfast is served from 7 AM to 10 AM. Do you need me to note that for you?\",\"reply_pt\":\"O café da manhã é servido das 7h às 10h. Você precisa que eu anote isso para você?\",\"instruction_pt\":\"Use 'breakfast' without 'the'.\",\"corrections\":[{\"original\":\"the breakfast\",\"suggested\":\"breakfast\",\"explanation_pt\":\"Use 'breakfast' without the article, it's an uncountable noun.\",\"category\":\"grammar\"}],\"suggestion_en\":\"Breakfast is served from 7 AM to 10 AM. Thank you.\",\"suggestion_pt\":\"O café da manhã é servido das 7 às 10. Obrigado.\",\"words\":[\"Breakfast is served from 7 AM to 10 AM\",\"Do you need me to note that for you?\",\"Anything else I can help you with?\"],\"focus\":\"Use 'breakfast' without 'the'.\",\"next_action\":\"reply\"}",
+          "reasoning": "We need to parse user input: \"What time is the breakfast?\" They ask about breakfast time. In a hotel, we should respond politely, give correct information, and ask follow-up: \"Would you like me to write down the time?\" The corrections: \"What time is the breakfast?\" is grammatical? It's okay but unnatural. Usually, \"What time is breakfast?\" Or \"What time is breakfast served?\" Also \"breakfast\" is countable? Not; it's a noun. \"What time is breakfast?\" is fine. \"What time is the breakfast?\" could be considered okay but a bit unnatural because breakfast is uncountable and not usually preceded by 'the'. But some might say \"the breakfast\" meaning the breakfast at the hotel. It's acceptable. But we can correct to \"What time is breakfast served?\" That's a suggestion.\n\nWe need to output JSON according to schema: fields: reply_en, reply_pt, instruction_pt, corrections (array up to 3), suggestion_en, suggestion_pt, words (array up to 3), focus, next_action.\n\nWe need to evaluate if there is any correction needed. According to rule: we need to respond first to meaning of what student said, then apply corrections if needed. The student says \"What time is the breakfast?\" It's a question. They ask the time.\n\nWe must check for errors: \"What time is the breakfast?\" It's slightly unnatural. According to rule, we can correct. It's not a grammar mistake but a usage nuance. The category could be \"word_order\" or \"register\" or \"vocabulary\"? It's more like register: using definite article with uncountable noun. The correct phrasing is \"What time is breakfast?\" or \"What time is breakfast served?\" We can provide correction. The system says maximum 3 points. We can provide 1 correction: \"the breakfast\" -> \"breakfast\".\n\nSo corrections: original: \"the breakfast\", suggested: \"breakfast\", explanation_pt: \"Use 'breakfast' without the article, it's an uncountable noun.\" Category: \"vocabulary\" or \"word_order\"? I'd say \"word_order\" or \"vocabulary\" but article usage is more grammar. Use \"grammar\". We'll go with \"grammar\". Next, we need suggestion: \"The breakfast is served from 7am to 10am. Would you like me to write down the time for you?\" But we need reply_en: 1-3 sentences ending with a question. For example: \"Breakfast is served from 7 AM to 10 AM. Do you need me to note that for you?\" This ends with a question. We can also ask follow-up: \"Is there anything else I can help you with?\"\n\nWe need suggestion_en: a short response the student could say, e.g., \"Breakfast is served from 7 AM to 10 AM. Thank you.\" Or \"It's from 7 to 10.\" But suggestion_en: a possible student answer: \"Breakfast is served from 7 to 10. Thank you.\"\n\nWe need words: up to 3 expressions practiced: e.g., \"What time is breakfast?\" \"Breakfast is served from 7 AM to 10 AM.\" \"Do you need me to note that for you?\" Or \"Sure.\" But we can provide a few. Maybe \"Breakfast is served from 7 AM to 10 AM\" and \"Do you need me to write that down?\" And \"Is there anything else I can help you with?\" But keep up to 3. Let's choose: \"Breakfast is served from 7 AM to 10 AM\", \"Do you need me to note that for you?\", \"Anything else I can help you with?\" Actually we can choose 3 expressions: \"Breakfast is served from 7 AM to 10 AM\", \"Do you need me to note that for you?\", \"Anything else I can help you with?\" That might be too many. Maybe just two. But we can provide 3.\n\nFocus: a short improvement point: \"Use 'breakfast' without 'the'.\" So focus: \"Use 'breakfast' without the article.\"\n\nInstruction_pt: \"Use 'breakfast' without the article 'the'.\" Or \"Remember not to use 'the' before breakfast.\" It must be not empty. Let's do: \"Use 'breakfast' without 'the'.\" That's short.\n\nNext_action: likely 'reply' because we ask them to respond. So \"reply\".\n\nLet's produce JSON. Ensure valid JSON with compact formatting. Use no extraneous whitespace. Ensure all fields present. We'll follow schema.\n\nCheck each field:\n\n- reply_en: string ends with question. Eg: \"Breakfast is served from 7 AM to 10 AM. Do you need me to note that for you?\" This ends with a question. Good.\n\n- reply_pt: translation. \"O café da manhã é servido das 7h às 10h. Você precisa que eu anote isso para você?\" ends with question mark.\n\n- instruction_pt: \"Use 'breakfast' without 'the'.\" Good.\n\n- corrections: array with one object: original: \"the breakfast\", suggested: \"breakfast\", explanation_pt: \"Use 'breakfast' without the article, it's an uncountable noun.\" category: \"grammar\".\n\n- suggestion_en: \"Breakfast is served from 7 AM to 10 AM. Thank you.\" Could be simpler: \"Breakfast is served from 7 to 10. Thank you.\" Good.\n\n- suggestion_pt: \"O café da manhã é servido das 7 às 10. Obrigado.\"\n\n- words: array: we can include 3 expressions: \"Breakfast is served from 7 AM to 10 AM\", \"Do you need me to note that for you?\", \"Anything else I can help you with?\" But we need up to 3.\n\nBetter: words: [\"Breakfast is served from 7 AM to 10 AM\", \"Do you need me to note that for you?\", \"Anything else I can help you with?\"]\n\n- focus: \"Use 'breakfast' without 'the'.\" maybe same as instruction but could be slightly different: \"Avoid using 'the' before breakfast.\" But it's okay.\n\n- next_action: \"reply\".\n\nLet's assemble JSON. Ensure field names match exactly: \"reply_en\", \"reply_pt\", \"instruction_pt\", \"corrections\", \"suggestion_en\", \"suggestion_pt\", \"words\", \"focus\", \"next_action\". All required.\n\nCheck JSON format: no trailing commas.\n\nLet's produce."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.192224511,
+      "prompt_tokens": 1366,
+      "prompt_time": 0.09362782,
+      "completion_tokens": 1555,
+      "completion_time": 1.6623703829999998,
+      "total_tokens": 2921,
+      "total_time": 1.7559982029999999,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1342
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_4a35f7bd1b",
+    "x_groq": {
+      "id": "req_01m2nxyhb0es6t3h1khb36nhsr",
+      "seed": 392480202
+    },
+    "service_tier": "on_demand"
+  }
+}

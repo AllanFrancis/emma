@@ -428,25 +428,39 @@ function assertContract() {
       if (validateEvidence(turn, record.aluno).length > 0) semEvidencia += 1;
     }
 
+    // Falha de rate limit e transitoria: o teto de tokens do tier gratuito nao diz nada
+    // sobre o contrato, e conta-la como falha de contrato travaria o criterio para sempre.
+    // Falha de CONTRATO (json_validate_failed, HTTP 4xx do schema) e outra historia.
     const failuresDir = path.join(target.modelDir, "_failures");
-    const failures = fs.existsSync(failuresDir)
-      ? fs.readdirSync(failuresDir).filter((name) => name.endsWith(".json")).length
-      : 0;
+    let falhasDeContrato = 0;
+    let falhasTransitorias = 0;
+    if (fs.existsSync(failuresDir)) {
+      for (const name of fs.readdirSync(failuresDir).filter((f) => f.endsWith(".json"))) {
+        const registro = JSON.parse(fs.readFileSync(path.join(failuresDir, name), "utf8"));
+        if (registro?.erro?.error === "rate_limit") falhasTransitorias += 1;
+        else falhasDeContrato += 1;
+      }
+    }
 
     const linha = [
       `${target.model}: ${files.length} turnos`,
       `contrato invalido=${contratoInvalido}`,
       `sem evidencia=${semEvidencia}`,
-      `falhas de API=${failures}`,
+      `falhas de contrato=${falhasDeContrato}`,
     ].join(" · ");
 
     const reprovou =
       files.length < MINIMO_TURNOS ||
       contratoInvalido > 0 ||
       semEvidencia > 0 ||
-      failures > 0 ||
+      falhasDeContrato > 0 ||
       semRegistro > 0;
     console.log(`${reprovou ? "ERRO  " : "ok    "}${linha}`);
+    if (falhasTransitorias > 0) {
+      console.log(
+        `      ${falhasTransitorias} falha(s) de rate limit ignorada(s) — transitoria, nao e falha de contrato`,
+      );
+    }
     if (files.length < MINIMO_TURNOS) {
       console.log(
         `      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`,

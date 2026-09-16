@@ -197,28 +197,54 @@ function requireApiKey() {
 
 const wait = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
+// O teto do tier gratuito e de TOKENS por minuto, nao de requisicoes: a rodada morre
+// com `remainingRequests` na casa dos 900 e `remainingTokens` perto de zero. O custo
+// medido por turno no gpt-oss-20b e ~1065 tokens, entao a janela permite 1 ou 2 turnos.
+const TOKENS_POR_TURNO = 1100;
+const PISO_DE_TOKENS = TOKENS_POR_TURNO * 2; // abaixo disso, a proxima chamada ja nasce condenada
+const MAX_TENTATIVAS = 6;
+const ESPERA_MINIMA = 20; // o `retry-after` do Groq vem em 2-5s, curto demais p/ refilar TPM
+
+async function throttleByTokenBudget(limits) {
+  const remaining = Number(limits?.remainingTokens);
+  if (!Number.isFinite(remaining) || remaining >= PISO_DE_TOKENS) return;
+  console.log(`  orcamento de tokens em ${remaining} — pausando ${ESPERA_MINIMA}s para refilar`);
+  await wait(ESPERA_MINIMA);
+}
+
 async function processRecord({ record, schema, model, tone, apiKey, evidenceDir }) {
   const filePath = path.join(evidenceDir, `${record.id}.json`);
   if (fs.existsSync(filePath)) return { status: "skipped" };
   const payload = buildPayload(record, schema, model, tone);
-  let result = await callModel(payload, apiKey);
-  if (result.error === "rate_limit") {
-    saveFailure(evidenceDir, record, model, tone, payload, result);
-    console.log(`  rate limit — aguardando ${result.retryAfter}s (progresso preservado)`);
-    await wait(result.retryAfter);
+
+  let result;
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa += 1) {
     result = await callModel(payload, apiKey);
+    if (result.error !== "rate_limit") break;
+    saveFailure(evidenceDir, record, model, tone, payload, result);
+    if (tentativa === MAX_TENTATIVAS) break;
+    const espera = Math.max(result.retryAfter, ESPERA_MINIMA) * tentativa;
+    console.log(
+      `  rate limit em ${record.id} (tentativa ${tentativa}/${MAX_TENTATIVAS}) — aguardando ${espera}s, progresso preservado`,
+    );
+    await wait(espera);
   }
+
   if (result.error) {
     const failurePath = saveFailure(evidenceDir, record, model, tone, payload, result);
     console.log(
       `FALHA ${record.id}: ${result.error} · salva em ${path.relative(PROJECT_ROOT, failurePath)}`,
     );
-    return { status: "failed", stop: result.error === "rate_limit" };
+    // Rate limit nao aborta mais a rodada: com backoff e retomada, insistir no proximo
+    // registro custa menos que reiniciar tudo. Erro de contrato, sim, merece parar.
+    return { status: "failed", stop: result.error !== "rate_limit" };
   }
+
   saveSuccess(filePath, record, model, tone, payload, result);
   console.log(
-    `ok ${record.id}${result.limits.remainingRequests ? ` · req restantes: ${result.limits.remainingRequests}` : ""}`,
+    `ok ${record.id}${result.limits.remainingTokens ? ` · tokens restantes: ${result.limits.remainingTokens}` : ""}`,
   );
+  await throttleByTokenBudget(result.limits);
   return { status: "saved" };
 }
 

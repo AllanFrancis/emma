@@ -1,0 +1,163 @@
+{
+  "id": "talk-08",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "executado_em": "2026-09-16T20:21:52.903Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Puxar conversa. Cenario: You and the student are chatting casually, as two people who just met.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "I'm not used to speak english every day"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-d33c8fcb-8ce6-4801-884e-ae1a92f2aa44",
+    "object": "chat.completion",
+    "created": 1789590130,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"I understand that you're not used to speaking English every day. How often do you currently practice speaking English?\",\"reply_pt\":\"Entendo que você não está acostumado a falar inglês todos os dias. Com que frequência você pratica falar inglês atualmente?\",\"instruction_pt\":\"Repita a frase corrigida e me diga quantas vezes pratica por semana.\",\"corrections\":[{\"original\":\"not used to speak\",\"suggested\":\"not used to speaking\",\"explanation_pt\":\"Use o gerúndio após 'used to'.\",\"category\":\"grammar\"},{\"original\":\"english\",\"suggested\":\"English\",\"explanation_pt\":\"Nomes próprios são escritos com letra maiúscula.\",\"category\":\"register\"}],\"suggestion_en\":\"I try to speak English a few times a week.\",\"suggestion_pt\":\"Eu tento falar inglês algumas vezes por semana.\",\"words\":[\"used to\",\"speak English\",\"every day\"],\"focus\":\"Usar gerúndio após 'used to' e capitalizar nomes próprios.\",\"next_action\":\"reply\"}",
+          "reasoning": "We need to produce JSON following schema. The student says: \"I'm not used to speak english every day\". We need to parse meaning: student says they are not used to speaking English every day. We need corrections up to 3. Let's identify errors:\n\n1. \"not used to speak\" should be \"not used to speaking\". So grammatical. Category grammar. Explanation: use gerund after \"used to\". Original: \"not used to speak\". Suggested: \"not used to speaking\".\n\n2. \"english\" should be capitalized \"English\". That is register or vocabulary? It's a proper noun, so register or vocabulary? According to schema categories, \"register\" maybe for capitalization but not sure. We can use \"vocabulary\" but better \"register\". Category register. Original: \"english\". Suggested: \"English\". Explanation: proper nouns are capitalized.\n\nAlso maybe \"every day\" should be \"every day\" is correct. It's adverb phrase fine. No error.\n\nAlso \"I'm not used to speak english every day\" grammar wise is fine except missing gerund. So two corrections.\n\nWe also need to reply: respond in English, addressing meaning: \"I understand that you're not used to speaking English daily.\" Then ask a question: \"How often do you currently practice speaking English?\" That's clear.\n\nAlso suggestion_en and suggestion_pt: suggestion for student to respond. Maybe: \"I try to speak English a few times a week.\" Suggestion_pt: \"Eu tento falar inglês algumas vezes por semana.\" words: up to 3 expressions practiced: \"used to\", \"speak English\", \"every day\". But maybe \"not used to speaking English daily\" includes \"used to\". The student may practice \"used to speaking\" phrase. So include those. Up to 3. So words: [\"used to\", \"speak English\", \"every day\"].\n\nFocus: point of improvement short in Portuguese: \"Usar gerúndio após 'used to' e capitalizar nomes próprios.\" That's it.\n\nInstruction_pt: \"Repita a frase corrigida.\" or \"Use a frase corrigida e me diga quantas vezes pratica por semana.\" According to schema, instruction_pt: a phrase telling student exactly what to do. So: \"Repita a frase corrigida e me diga quantas vezes pratica por semana.\" That is fine.\n\nNext_action: after correcting, we want student to reply with count. So next_action = \"reply\".\n\nLet's compose JSON."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.1435618,
+      "prompt_tokens": 1367,
+      "prompt_time": 0.071448099,
+      "completion_tokens": 726,
+      "completion_time": 0.83230789,
+      "total_tokens": 2093,
+      "total_time": 0.903755989,
+      "completion_tokens_details": {
+        "reasoning_tokens": 505
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_63473661d7",
+    "x_groq": {
+      "id": "req_01m2ny4k2deperd34xz40m5djs",
+      "seed": 1521487148
+    },
+    "service_tier": "on_demand"
+  }
+}
