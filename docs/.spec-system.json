@@ -1,0 +1,16 @@
+{
+  "schema": "sdd-4.0",
+  "template_revision": "4.1.1",
+  "installed_at": "2026-09-15 23:31",
+  "policy": "standard",
+  "interop": "inline",
+  "team": "solo",
+  "product": null,
+  "commands": {
+    "test": "",
+    "typecheck": "bun x tsc --noEmit",
+    "lint": "bun run lint",
+    "dev": "bun run dev",
+    "e2e": ""
+  }
+}
