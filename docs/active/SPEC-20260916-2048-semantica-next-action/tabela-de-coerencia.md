@@ -1,10 +1,10 @@
 # Tabela de coerência — `corrections` × `next_action`
 
-**Status:** rascunho aguardando revisão humana
+**Status:** revisada e aprovada pelo usuário em 2026-09-17
 **Fundamento empírico:** `evidence/levantamento-taxa.md` — 117 turnos mensuráveis
 **Critério que isto atende:** 1 — "Tabela de coerência escrita e revisada, com justificativa por combinação"
 
-O risco registrado no `main.md` manda revisar esta tabela por humano ANTES de ela virar checagem, porque "a regra pode ter exceção legítima: numa etapa final de missão talvez faça sentido corrigir e seguir". As duas linhas marcadas ⚠ são exatamente esse ponto.
+O risco registrado no `main.md` exigia revisão humana ANTES de a tabela virar checagem, porque "a regra pode ter exceção legítima: numa etapa final de missão talvez faça sentido corrigir e seguir". A revisão aconteceu e a exceção foi **recusada explicitamente** — ver "A regra aprovada" abaixo.
 
 ## Base normativa
 
@@ -14,6 +14,18 @@ Duas fontes decidem, e elas não se contradizem:
 - **Métrica central (§20):** "o aluno produziu linguagem e tentou novamente após receber feedback." O que conta é a tentativa APÓS o feedback.
 
 Do enum de `next_action`, só `retry` significa "o aluno repete a própria fala com a correção aplicada". Os outros três movem a conversa adiante.
+
+## A regra aprovada
+
+Formulação do usuário, 2026-09-17:
+
+> "se existe uma correção que o aluno precisa aplicar, o fluxo pedagógico deve dar oportunidade de aplicação antes de avançar ou concluir a missão."
+
+E o limite dessa regra, também do usuário:
+
+> "enquanto o contrato atual não distinguir explicitamente uma 'correção informativa/não bloqueante', uma correção emitida deve impedir `continue_mission` e `complete_mission`. Se futuramente quisermos permitir observações no fechamento da missão sem exigir nova tentativa, isso deve entrar como uma semântica nova e explícita no contrato. Não quero abrir essa exceção implicitamente dentro da C15."
+
+Consequência de desenho: **a C15 não tem exceção**. Correção emitida ⇒ só `retry` é coerente. A porta para "observação no fecho sem nova tentativa" existe, mas ela se abre mudando o CONTRATO do turno — criando a distinção entre correção bloqueante e informativa — e não relaxando a checagem por dentro.
 
 ## A tabela
 
@@ -32,19 +44,35 @@ Do enum de `next_action`, só `retry` significa "o aluno repete a própria fala 
 |---|---|---|---|
 | `retry` | ✅ sim | 23 | Caso canônico coerente. A correção foi emitida E o aluno é convidado a aplicá-la. É o único valor do enum que satisfaz a métrica central de forma direta. |
 | `reply` | ❌ não | **41** | **A lacuna.** É o caso `hotel-10`. A correção chega ao aluno e a conversa segue sem que ele a use; o feedback vira informação. 64,1% das correções do produto hoje caem aqui. |
-| `continue_mission` | ⚠ não — sem base empírica | 0 | A etapa fechou, então pedir repetição contradiz o fechamento. Mas a correção também não é aplicada em nenhum momento. Classificado incoerente por DERIVAÇÃO do invariante, não por medida: zero ocorrências em 117 turnos. **Ponto de revisão.** |
-| `complete_mission` | ⚠ não — sem base empírica | 0 | Pior caso na leitura estrita: a missão terminou, então não existe turno futuro onde aplicar. O `main.md` já chamava esta combinação de "suspeita". Também zero ocorrências. **Ponto de revisão.** |
+| `continue_mission` | ❌ não | 0 | Avançar de etapa com correção pendente ignora a correção: a etapa fecha sem que o aluno tenha tido oportunidade de aplicar. Sem base empírica (0 de 117) — a classificação vem da regra aprovada, não de medida, e isso está declarado de propósito. |
+| `complete_mission` | ❌ não | 0 | Pior caso: a missão termina e não existe turno futuro onde aplicar. O `main.md` já chamava esta combinação de "suspeita". Sem base empírica (0 de 117); classificação pela regra aprovada. |
 
-## Os dois pontos de revisão, com a tensão explícita
+Resumo operável, que é o que a C15 implementa: **`corrections.length > 0` ⇒ `next_action` deve ser `retry`.** Qualquer outro valor é incoerente.
 
-**`continue_mission` + correção.** Argumento para incoerente: o invariante é absoluto, e uma correção que a conversa nunca cobra é informação. Argumento para coerente: a etapa seguinte pode ser onde o aluno naturalmente reusa a forma corrigida, e forçar `retry` no fechamento de etapa pode travar o ritmo da missão. O turno, isolado, não consegue provar que a aplicação aconteceu depois — e uma checagem de turno único não vê a etapa seguinte. Quem veria isso é uma checagem longitudinal, que é território da SPEC-20260916-2257-retencao-de-contexto-na-conversa e está fora desta rodada.
+## Por que classificar sem base empírica é a escolha certa aqui
 
-**`complete_mission` + correção.** Argumento para incoerente: não há futuro na missão para aplicar. Argumento para coerente: o fecho de lição (SPEC-20260916-1652-fecho-de-licao, bloqueada) é o lugar desenhado para "expressões praticadas" e pontos de melhoria — uma correção emitida no último turno poderia legitimamente ser endereçada lá, e não no turno. Além disso, há uma leitura de produto a considerar: o aluno-alvo tem como maior bloqueio declarado a vergonha de errar, e encerrar a missão com uma correção que ele não pode aplicar é uma crítica de despedida.
+`continue_mission` nunca ocorreu e `complete_mission` só ocorreu sem correção. Poderia parecer prudente deixar as duas linhas fora da checagem por falta de dado. É o contrário: errar para o lado estrito custa **zero** hoje — a checagem não vai acusar nada que exista — e dispara alarme no dia em que o comportamento aparecer. Classificar como coerente silenciaria a C15 nesses dois valores para sempre, e o modo de falha só apareceria em produção.
 
-Nas duas linhas a classificação proposta é **incoerente**, porque é o que o invariante contratado diz e porque errar para o lado estrito faz a checagem ACUSAR casos que hoje não existem — custo zero no presente e alarme se o comportamento aparecer. A alternativa (classificar como coerente) silenciaria a checagem para sempre nesses dois valores.
+A honestidade metodológica é manter a distinção visível: 41 casos de `reply` são MEDIDA; as duas linhas de missão são REGRA. As duas coisas viram a mesma checagem, mas não têm o mesmo lastro, e o relatório não deve fingir que têm.
 
-## Consequência para a decisão do critério 4
+## Fonte de verdade de `next_action` — decisão do critério 4
 
-A taxa de 64,1% é alta, e o contrato já disse o que fazer com número alto: a correção é do núcleo, sobrescrevendo a proposta do modelo, não instrução de prompt. O achado do `hotel-10` reforça — a combinação já esteve correta (`retry` no contrato-do-turno-v2) e o prompt v5 a regrediu para `reply`. Instrução de prompt é justamente o que falhou, e falhou sem ninguém notar porque nada media.
+**Escolhido: o núcleo pedagógico sobrescreve a proposta do modelo.** Decisão do usuário em 2026-09-17, sustentada pela taxa medida.
 
-Isso é consistente com DEC-20260916-1612: o modelo propõe `next_action`, quem decide é o núcleo pedagógico. A decisão formal fica para o critério 4, com `| evidence: manual @allan`.
+O que os dados sustentam:
+
+- 41 de 64 turnos com correção emitida não pediram aplicação (64,1%);
+- `hotel-10` está gravado com `retry` no contrato-do-turno-v2 e com `reply` no prompt-v5 — o mesmo caso, a mesma correção, e o prompt regrediu;
+- logo, instrução de prompt não é garantia suficiente para esta invariante pedagógica. A instrução é precisamente o que falhou, e falhou sem ninguém notar porque nada media.
+
+Isso é consistente com DEC-20260916-1612: o modelo PROPÕE `next_action`, quem decide é o núcleo. A regra determinística que o núcleo aplica, na formulação do usuário:
+
+- há correção que requer aplicação → o núcleo força a ação de repetição/aplicação;
+- não há correção → respeita-se a semântica correspondente do fluxo/missão;
+- avanço ou conclusão nunca podem ignorar uma correção pendente.
+
+O núcleo pedagógico já está arquivado (SPEC-20260916-1652-nucleo-pedagogico); esta SPEC define a regra, não a implementa lá — o escopo do `main.md` é explícito: "Implementar o núcleo pedagógico (SPEC própria) — aqui se define a regra que ele vai aplicar". A C15 é o instrumento que prova a regra sobre evidência.
+
+## Alternativa recusada nesta revisão
+
+**Permitir correção não bloqueante em `continue_mission` / `complete_mission` por dentro da C15.** Recusada pelo usuário: a exceção pode ser desejável no futuro, mas tem de entrar como semântica NOVA e explícita no contrato do turno — distinguindo correção bloqueante de informativa — e não como afrouxamento implícito da checagem. Registrar aqui para que a recusa não se perca e a ideia não volte disfarçada.

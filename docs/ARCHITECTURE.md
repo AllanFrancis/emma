@@ -11,7 +11,7 @@
 | scripts/eval/turn-schema.json | dialogo | Contrato do turno v2 — fonte única, consumida pelo strict mode do Groq e (futuro) pelos tipos do app |
 | scripts/eval/turn-validator.mjs | dialogo | Validação de schema (subset de JSON Schema) e de evidência citada |
 | scripts/eval/run.mjs | dialogo | Prompt de sistema e runner contra o Groq, com backoff por orçamento de tokens |
-| scripts/eval/grade.mjs | dialogo | As 13 checagens mecânicas de qualidade do turno |
+| scripts/eval/grade.mjs | dialogo | As 15 checagens mecânicas de qualidade do turno, mais as 5 longitudinais |
 | scripts/eval/validate.mjs | dialogo | Validação estrutural offline do dataset e do schema |
 | scripts/eval/dataset.jsonl | avaliacao | 45 falas de referência, 17 delas controles para medir sobre-correção |
 | scripts/eval/rubric.md | avaliacao | Rubrica de nível N1–N5 × 5 critérios, com evidência obrigatória |
@@ -26,7 +26,7 @@
 
 ## Fluxos transversais
 
-- **Avaliação de um modelo:** `dataset.jsonl` → `run.mjs` (prompt + Groq) → `evidence/<modelo>/` na pasta da SPEC → `grade.mjs` (13 checagens) → relatório + leitura humana. Nada disso toca o app; roda em Node puro.
+- **Avaliação de um modelo:** `dataset.jsonl` → `run.mjs` (prompt + Groq) → `evidence/<modelo>/` na pasta da SPEC → `grade.mjs` (15 checagens) → relatório + leitura humana. Nada disso toca o app; roda em Node puro.
 - **Turno de conversa (planejado, Fase 1):** perfil + sessão → **pedagogia** (`PedagogicalIntent`) → **dialogo** (server function, strict JSON, fallback roteirizado) → **personalidade** (estilo pós-LLM, campos protegidos) → canal texto. Voz (Fase 3) entra e sai pelas pontas, com o mesmo núcleo no meio.
 - **Onde vive a decisão:** política pedagógica em **pedagogia** (TypeScript, sem rede); formulação de linguagem no LLM via **dialogo**; tom em **personalidade**. Regra pedagógica em componente de interface ou em texto de prompt é violação da §11 do prompt de desenvolvimento.
 

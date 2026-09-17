@@ -14,13 +14,13 @@
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "semântica de `next_action`, especialmente casos como `hotel-10`, em que existe correção mas o fluxo segue com `reply`"
-**Resumo:** Define e valida a coerência entre emitir correção e pedir que o aluno a aplique, fechando a lacuna que nenhuma das 13 checagens mede.
+**Resumo:** Define e valida a coerência entre emitir correção e pedir que o aluno a aplique, fechando a lacuna que nenhuma das 14 checagens de turno media.
 
 ## Objetivo
 
 Na comparação controlada da SPEC-20260916-1652, `hotel-10` mudou `next_action` de `retry` para
 `reply` mantendo a correção emitida. Pedagogicamente isso é pior: o aluno recebe a forma correta e
-a conversa segue sem que ele a use. E **nenhuma das 13 checagens captura isso** — C12 só olha casos
+a conversa segue sem que ele a use. E **nenhuma das 14 checagens de turno captura isso** — C12 só olha casos
 de controle, verificando que não se pede repetição a quem não errou. Falta o espelho: quem recebeu
 correção deveria ser convidado a aplicá-la. A métrica central da §20 é justamente "o aluno produziu
 linguagem e tentou novamente após receber feedback".

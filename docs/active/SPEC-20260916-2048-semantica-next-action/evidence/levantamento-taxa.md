@@ -22,6 +22,8 @@ Destes, **115 não têm `next_action` legível**: são as evidências da SPEC-20
 
 ## Distribuição `corrections` × `next_action`
 
+> Esta seção usa a leitura MAIS ABRANGENTE, incluindo os 10 turnos de `conversas/`. A convenção oficial do harness exclui conversa e dá 61/38 — ver "Duas convenções" logo abaixo. As duas contagens estão aqui de propósito, porque a distribuição por valor do enum é o que fundamenta a tabela de coerência, e para isso quanto mais turno melhor.
+
 **Com correção emitida — 64 turnos:**
 
 | `next_action` | n | % |
@@ -42,9 +44,26 @@ Destes, **115 não têm `next_action` legível**: são as evidências da SPEC-20
 
 ## A taxa
 
-**41 de 64 turnos com correção emitida (64,1%) não pedem aplicação.** Todos os 41 são `reply`.
+**Número oficial, reproduzível pelo harness — 38 de 61 turnos com correção (62,3%) não pedem aplicação.** Todos os 38 são `reply`.
 
-O contrato desta SPEC previu o que fazer com esse número: "Se a taxa for alta, a correção é do núcleo (sobrescrever a proposta); se for baixa, instrução de prompt basta." 64,1% é alta — quase dois terços das correções do produto hoje são informação, não ensino. Instrução de prompt não sustenta essa lacuna, e há evidência direta disso no achado do `hotel-10` abaixo.
+```
+node scripts/eval/grade.mjs --levantamento-aplicacao
+```
+
+### Duas convenções, dois números, nenhum errado
+
+O harness cobre **rodadas por turno** e exclui `conversas/`, porque conversa é um arquivo com vários turnos e tem caminho próprio (`--conversas`). Essa é a convenção que o levantamento de grafia da SPEC-20260916-2048-regra-fala-transcrita já usava, e mantê-la faz os dois levantamentos comparáveis.
+
+| Convenção | com correção | não pedem aplicação | taxa |
+|---|---|---|---|
+| Rodadas por turno (harness, oficial) | 61 | 38 | **62,3%** |
+| Incluindo os 10 turnos de `conversas/` | 64 | 41 | 64,1% |
+
+As 4 conversas contribuem 3 turnos com correção, todos `reply`. A conclusão não muda em nenhuma das duas leituras: a taxa é alta e instrução de prompt não sustenta a invariante. O número citado em decisão é o de 62,3%, porque é o que um comando reproduz.
+
+O harness também lê 197 turnos onde o script exploratório leu 222: a diferença são os 25 turnos de `_baseline-prompt-v1` e `_baseline-prompt-v2`, que `collectEvidenceTargets` ignora por convenção de prefixo `_`. Todos eram anteriores ao contrato v2 e não tinham `next_action`, então **o universo mensurável é idêntico nas duas contagens: 107 turnos.**
+
+O contrato desta SPEC previu o que fazer com esse número: "Se a taxa for alta, a correção é do núcleo (sobrescrever a proposta); se for baixa, instrução de prompt basta." 62,3% é alta — quase dois terços das correções do produto hoje são informação, não ensino. Instrução de prompt não sustenta essa lacuna, e há evidência direta disso no achado do `hotel-10` abaixo.
 
 ## Achados que a distribuição revelou
 
@@ -68,3 +87,4 @@ O `main.md` desta SPEC diz "nenhuma das **13** checagens captura isso". O `grade
 A primeira execução mediu 222 turnos e perdeu as 4 conversas inteiras em silêncio. Causa: os dois formatos de evidência guardam a resposta de forma diferente — na evidência de turno único, `resposta` é o envelope da API (`choices[0].message.content` como string JSON); na evidência de conversa, `turno.resposta` já é o turno desserializado. Tratar só o primeiro formato zera as conversas sem erro nenhum.
 
 Isso vale como gotcha para qualquer futura varredura de evidência, e é candidato a gotcha da feature `dialogo` no fechamento.
+
