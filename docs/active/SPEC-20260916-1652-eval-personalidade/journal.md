@@ -2,12 +2,12 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 20:44
-**Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
-**Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
-**Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
-**Bloqueio atual:** nenhum. Rodada em andamento sob teto de TOKENS/min.
-**Se retomar, ler:** `main.md` desta SPEC e a entrada `[unblock]` de 16:30 no journal arquivado da SPEC-20260916-1450, que traz os números do v4.
+**Última atualização:** 2026-09-16 20:55
+**Onde tô:** entrega completa. v5 MANTIDO pelo usuário; 8 de 10 critérios evidenciados, 2 deferidos com autorização (R.6.2) porque a medição achou divergência real.
+**Próximo passo:** `close --dry` verde — rodar `close`.
+**Última decisão:** validade do contrato e confiabilidade da geração são dimensões distintas; falha recuperada não reprova e nunca é apagada.
+**Bloqueio atual:** nenhum.
+**Se retomar, ler:** `main.md` (tabela de semântica de falha de geração) e as entradas `[decisão]` de 20:44 e `[conclusão]` de 20:55.
 
 ### Fases
 | # | Descrição | Status | Atualizado |
@@ -16,9 +16,11 @@
 | 2 | Prompt v5 — precedência da via (b) e `explanation_pt` amarrada ao português | concluído | 2026-09-16 17:13 |
 | 3 | `run.mjs --matriz` e `--comparar-prompt` | concluído | 2026-09-16 17:14 |
 | 4 | `grade.mjs --matriz` — asserções de completude, invariância, diferença e teto | concluído | 2026-09-16 17:16 |
-| 5 | Rodada da matriz (48 chamadas) | em progresso | 2026-09-16 17:16 |
-| 6 | `--comparar-prompt` — as 7 falas do v4 contra o v5 (7 chamadas) | pendente | 2026-09-16 17:05 |
-| 7 | Leitura humana: troca C5×C4 e diferença percebida entre os tons | pendente | 2026-09-16 17:05 |
+| 5 | Rodada da matriz (48 células) | concluído | 2026-09-16 20:28 |
+| 6 | `--comparar-prompt` — as 7 falas do v4 contra o v5 | concluído | 2026-09-16 20:30 |
+| 7 | Leitura humana: veredito do usuário — v5 mantido | concluído | 2026-09-16 20:43 |
+| 8 | Gate separa validade do contrato de confiabilidade da geração | concluído | 2026-09-16 20:52 |
+| 9 | 4 SPECs future com os achados separados + DAG | concluído | 2026-09-16 20:54 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 - fato: o contrato do turno v2 está fechado e medido (45/45, zero falha) — esta SPEC NÃO o altera.
@@ -372,3 +374,73 @@ repetida com parâmetros fixos, separando efeito de tom de variância de geraç�
 dependem da mesma rodada produziria um DAG errado e trabalho duplicado. Se o usuário preferir
 quatro itens separados, é ajuste de um nó no manifesto.
 ⎿ commit 00600b3
+
+## 2026-09-16 20:47 — [nota] verify: 3/5 critérios passaram (commit `e4ecf53`)
+
+- FAIL: Invariância pedagógica: `corrections[].suggested`, `categor…
+- FAIL: Nenhum tom corrige mais itens que o outro para a mesma fala…
+- PASS: O gate classifica falha de geração conforme a decisão de 20…
+- PASS: As 13 checagens do contrato v2 seguem verdes sobre as saída…
+- PASS: Comparação v4→v5 nas 7 falas que falharam, com as duas evid…
+
+## 2026-09-16 20:47 — [nota] verify: 0/2 critérios passaram (commit `e4ecf53`)
+
+- FAIL: Invariância pedagógica: `corrections[].suggested`, `categor…
+- FAIL: Nenhum tom corrige mais itens que o outro para a mesma fala…
+
+## 2026-09-16 20:55 — [conclusão] v5 MANTIDO: 5 melhora, 2 equivalencia, 0 regressao na comparacao controlada 7/7; gate separa validade de confiabilidade; 2 criterios deferidos e 4 achados separados em SPECs proprias
+
+Entrega: 8 de 10 critérios evidenciados pela ferramenta, 2 deferidos com autorização do usuário
+(R.6.2) porque a medição encontrou divergência real — o deferimento preserva o achado em vez de
+escondê-lo.
+
+DECISÃO CENTRAL: **prompt v5 MANTIDO**. Comparação controlada nas 7 falas que falharam com o v4, em
+condição idêntica (nível do dataset, tom tranquila, mesmo modelo, mesmo dataset — só o prompt muda):
+5 melhora · 2 equivalência · 0 regressão confirmada.
+
+- C13 é o ganho mais consistente: 2 das 3 explicações em inglês viraram português de forma
+  verificável; a 3ª virou n/a por não haver correção. Na matriz, 97% contra 88% do v4.
+- C5 melhorou parcialmente: 2 das 4 omissões consertadas; nas outras 2 a forma correta continua
+  indo para `suggestion_en`.
+- C4 sem regressão confirmada: das 7, só `hotel-07` é controle, e o v5 NÃO sobre-corrigiu onde o v4
+  sobre-corrigia. A queda para 69% na matriz é composição de amostra.
+
+O QUE ESTA SPEC ENTREGOU COMO INSTRUMENTO, além do resultado:
+- `matriz.json` — subconjunto declarado com MOTIVO por fala, eixos de nível e tom, e as 7 falas da
+  comparação com a falha que cada uma teve no v4.
+- 4 asserções de matriz a partir de funções PURAS: completude, invariância (por nível), diferença de
+  estilo e teto por tom.
+- Gate de tamanho que valida o DESENHO de cada grupo, e não um número único: matriz exige
+  exatamente falas×níveis×tons, comparação controlada exige exatamente as 7, dataset exige mínimo.
+  Reprova nos dois sentidos — faltando e sobrando.
+- Gate que separa VALIDADE do contrato de CONFIABILIDADE da geração, com as três métricas nomeadas
+  pelo usuário. 41 casos de self-test no total (19 de turno, 7 de matriz, 8 de tamanho, 7 de
+  classificação de geração).
+- Relatório legível por fala e por nível, para a leitura humana.
+
+TRÊS ERROS MEUS, TODOS PEGOS E CORRIGIDOS:
+1. Passe espúrio: rodei `verify` com 12 de 48 células e o critério de diferença passou por falta de
+   dados. Gate corrigido para exigir desenho completo; selo falso desfeito à mão com rastro.
+2. Incluí `focus` — texto livre — em asserção de igualdade exata, inflando 19 violações quando a
+   divergência real era 10 de 24.
+3. Contei a métrica de confiabilidade por FALA em vez de por GERAÇÃO, subnotificando 48 gerações
+   válidas como 12.
+
+BURACO NO HARNESS registrado: `specctl verify --all` re-executa e reporta FAIL, mas não remove o
+`[x]`. A ferramenta marca e nunca desmarca, e não existe `uncheck` — um gate que fica mais rigoroso
+depois de um passe deixa selo falso que o `close` aceitaria.
+
+ACHADOS SEPARADOS EM TRABALHOS PRÓPRIOS, por determinação do usuário, em 4 SPECs future:
+- SPEC-20260916-2048-tom-versus-pedagogia — a hipótese de interação tom/pedagogia e as divergências
+  reais entre tons, com amostragem repetida e parâmetros controlados. Recebe os 2 critérios
+  deferidos daqui e passa a bloquear a camada-de-personalidade.
+- SPEC-20260916-2048-semantica-next-action — correção emitida com `next_action` que não pede
+  aplicação (`hotel-10`); lacuna que nenhuma das 13 checagens mede.
+- SPEC-20260916-2048-regra-fala-transcrita — a violação da DEC-20260916-0312 em `livre-02`;
+  instrução explícita no prompt não impediu, então a regra precisa ser verificável.
+- SPEC-20260916-2048-metodologia-de-eval — `temperature`/`seed`, retry in-process para
+  `json_validate_failed` alinhado à DEC-20260916-0311, timeout no `fetch` e registro de falha por
+  célula em vez de por fala.
+
+Programa emma: 16 nós, 3 concluídos com esta.
+⎿ commit e4ecf53+dirty · 7 files changed, 112 insertions(+), 18 deletions(-)
