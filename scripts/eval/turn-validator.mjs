@@ -71,6 +71,39 @@ function stripEdgePunctuation(text) {
   return text.replace(/^[\s"'.,!?;:]+/, "").replace(/[\s"'.,!?;:]+$/, "");
 }
 
+// Normalizacao de SUPERFICIE (SPEC-20260916-2048-regra-fala-transcrita). Um passo ADIANTE
+// de `normalizeForEvidence`, que preserva pontuacao porque precisa achar a citacao literal
+// dentro da fala. Aqui o proposito e o oposto: apagar tudo o que a fala transcrita nao
+// carrega — caixa, pontuacao e acento — para descobrir se sobra alguma diferenca real.
+function normalizeSurface(text) {
+  return normalizeForEvidence(text)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * A DEC-20260916-0312 e decisao ativa: a entrada e fala transcrita, entao maiuscula,
+ * pontuacao e grafia nao existem e nao se corrigem. Instrucao no prompt nao bastou
+ * (`livre-02 n1 tranquila` corrigiu "english" para "English"), entao a regra passa a ser
+ * verificavel: correcao cuja UNICA diferenca e de superficie e artefato de transcricao.
+ *
+ * Dispara: "english" -> "English" (caixa), "lets go" -> "let's go" (pontuacao),
+ * "cafe" -> "café" (acento).
+ * NAO dispara: "i'm agree" -> "I agree", que remove uma palavra — a diferenca deixa de
+ * ser exclusivamente de superficie e a correcao e legitima.
+ */
+export function isSurfaceOnlyCorrection(correction) {
+  const original = String(correction?.original ?? "");
+  const suggested = String(correction?.suggested ?? "");
+  // Correcao sem os dois lados nao e julgada aqui: quem acusa isso e a validacao de
+  // contrato (C1) e a de evidencia (C11). Devolver `true` viraria falso positivo.
+  if (original.trim() === "" || suggested.trim() === "") return false;
+  return normalizeSurface(original) === normalizeSurface(suggested);
+}
+
 /**
  * Toda correcao tem de citar evidencia: `original` precisa ocorrer literalmente na fala
  * do aluno. Correcao sem evidencia e saida invalida, nao correcao fraca — o mesmo

@@ -8,8 +8,8 @@
 ## Specs desta feature
 ### Concluídas
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
+- SPEC-20260916-1652 | 2026-09-17 | `pendente` | Núcleo pedagógico — mediana, teto por sustentação e histerese como código testável
 ### Planejadas (future/)
-- SPEC-20260916-1652-nucleo-pedagogico | Núcleo pedagógico — as regras que não pertencem ao LLM | Compartilhado com `pedagogia`; implementa mediana, teto e histerese como código testável
 - SPEC-20260916-1652-diagnostico-inicial | Diagnóstico inicial — primeira vitória e primeira amostra | Substitui a heurística `hasPolite` pela rubrica com evidência citada
 
 ## Estado atual
@@ -40,6 +40,8 @@ medir sobre-correção.
 - DEC-20260916-0315-histerese-nivel [ativa] (SPEC-20260916-0109) — promoção exige duas reavaliações consecutivas e rebaixamento exige três, reduzindo impacto de variação ocasional.
 - DEC-20260917-0002-amostragem-controlada [ativa] (SPEC-20260916-2048-metodologia-de-eval) — `temperature` fixada em 1 (o default da API, sob o qual as 215 evidências arquivadas foram geradas) e `seed` fixado em 20260916, ambos explícitos no payload e gravados na evidência junto com `seed_efetivo` (`x_groq.seed`) e `system_fingerprint`. Não se usa temperature 0: além de degradar naturalidade, o Groq a converte para 1e-8 e a quebra de comparabilidade com o histórico custaria mais do que a variância removida. `--temperature`/`--seed` permitem variar de propósito, com o valor usado sempre na evidência.
 - DEC-20260917-0003-timeout-derivado [ativa] (SPEC-20260916-2048-metodologia-de-eval) — timeout de requisição em 30s, derivado das 215 evidências com `usage`: parede máxima observada 2,91s (p99 2,39s) e pior caso estimado de geração ~8,5s (3.433 tokens no throughput p1 de 403 tok/s). Rodada sem timeout é indistinguível de rodada lenta — a da matriz pendurou ~15min em `livre-09-n4-direta`.
+- DEC-20260917-0025-confianca-baixa-nao-move-nivel [ativa] (SPEC-20260916-1652) — avaliação de confiança `baixa` (≤2 critérios pontuados) NÃO participa da contagem de consecutivas da histerese. A rubrica já manda usar o nível autoavaliado nesse caso; contá-la na sequência deixaria amostra insuficiente mover o nível, que é o oposto da DEC-20260916-0314. Sem nenhuma avaliação confiável, o nível vigente é o autoavaliado, com confiança `baixa`.
+- DEC-20260917-0026-nota-sem-evidencia-e-descartada [ativa] (SPEC-20260916-1652) — nota de critério sem citação literal é tratada como `null` e sai da mediana, em vez de contaminá-la. A DEC-20260916-0314 diz que classificação sem evidência é saída inválida; o núcleo aplica isso descartando, não corrigindo o valor.
 
 ## Alternativas consideradas e rejeitadas
 - SPEC-20260916-0109 | inferir proficiência por polidez ou perguntar o nível diretamente ao modelo — rejeitada em 2026-09-16 01:21. Não é auditável nem mede sustentação de conversa.

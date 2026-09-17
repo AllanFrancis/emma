@@ -1,16 +1,16 @@
 # SPEC-20260916-1652: Núcleo pedagógico — as regras que não pertencem ao LLM
 
-**Status:** draft
+**Status:** done
 **Porte:** G
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
-**Ativada:** —
-**Concluída:** —
+**Ativada:** 2026-09-16 23:23
+**Concluída:** 2026-09-17 00:36
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `9087faf`
 **Keywords:** pedagogia, intent, politica, nivel, missao, rubrica
 **Features:** pedagogia, avaliacao
-**Branch:** —
+**Branch:** feature/nucleo-pedagogico
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 16:52
@@ -103,12 +103,12 @@ encontrou em `quantoFala` e `quando`, capturados pelo protótipo e usados por na
 
 ## Critério de aceite
 
-- [ ] Nenhuma importação de rede, SDK ou fornecedor no módulo; o núcleo é função pura de estado para `PedagogicalIntent`
-- [ ] Política de nível implementa mediana, teto por sustentação e histerese (2 para promover, 3 para rebaixar), com teste para cada regra
-- [ ] Política de suporte em pt-BR é tabela de dados por nível, sem percentual em componente
-- [ ] Política de correção trunca em 3 por prioridade de `category`, com teste que prova a ordem
-- [ ] Máquina de missão avança e fecha etapa por transição explícita, com teste de cada transição
-- [ ] `next_action` proposto pelo modelo é recusado quando incoerente com a etapa real, com teste do caso `complete_mission` prematuro
-- [ ] Correção cujo `original` não ocorre na fala do aluno é rejeitada pelo núcleo
-- [ ] Tipos do turno derivam do `turn-schema.json` sem segunda definição do contrato
-- [ ] `overrides` de sessão resolvem por merge e não escrevem no perfil, com teste
+- [x] Nenhuma importação de rede, SDK ou fornecedor no módulo; o núcleo é função pura de estado para `PedagogicalIntent` (2026-09-17 00:18, commit `2b83700`)
+- [x] Política de nível implementa mediana, teto por sustentação e histerese (2 para promover, 3 para rebaixar), com teste para cada regra (2026-09-17 00:18, commit `2b83700`)
+- [x] Política de suporte em pt-BR é tabela de dados por nível, sem percentual em componente (2026-09-17 00:18, commit `2b83700`)
+- [x] Política de correção trunca em 3 por prioridade de `category`, com teste que prova a ordem (2026-09-17 00:18, commit `2b83700`)
+- [x] Máquina de missão avança e fecha etapa por transição explícita, com teste de cada transição (2026-09-17 00:18, commit `2b83700`)
+- [x] `next_action` proposto pelo modelo é recusado quando incoerente com a etapa real, com teste do caso `complete_mission` prematuro (2026-09-17 00:18, commit `2b83700`)
+- [x] Correção cujo `original` não ocorre na fala do aluno é rejeitada pelo núcleo (2026-09-17 00:18, commit `2b83700`)
+- [x] Tipos do turno derivam do `turn-schema.json` sem segunda definição do contrato (2026-09-17 00:18, commit `2b83700`)
+- [x] `overrides` de sessão resolvem por merge e não escrevem no perfil, com teste (2026-09-17 00:18, commit `2b83700`)

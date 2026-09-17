@@ -29,6 +29,7 @@
 
 ## Comandos
 
+- test: `bun test`
 - typecheck: `bun x tsc --noEmit`
 - lint: `bun run lint`
 - dev: `bun run dev`

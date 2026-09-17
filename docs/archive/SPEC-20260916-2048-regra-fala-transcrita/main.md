@@ -1,16 +1,16 @@
 # SPEC-20260916-2048: Regra da fala transcrita — impedir correção de grafia por construção
 
-**Status:** draft
+**Status:** done
 **Porte:** P
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
-**Concluída:** —
+**Ativada:** 2026-09-16 23:23
+**Concluída:** 2026-09-17 00:35
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `e31777c`
 **Keywords:** fala-transcrita, maiuscula, grafia, livre-02, DEC-0312
 **Features:** dialogo
-**Branch:** —
+**Branch:** feature/regra-fala-transcrita
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "violação da regra de não corrigir maiúscula/pontuação/grafia observada em `livre-02`"
@@ -76,7 +76,7 @@ caixa, pontuação e acentuação, a correção é de grafia e deve ser rejeitad
 
 ## Critério de aceite
 
-- [ ] Checagem implementada, disparando só quando a diferença entre `original` e `suggested` é exclusivamente de caixa, pontuação ou acentuação
-- [ ] Casos de teste cobrindo o positivo (`english` para `English`) e o falso positivo (`i'm agree` para `I agree`)
-- [ ] Taxa medida sobre as evidências já gravadas, sem chamada nova ao modelo
-- [ ] Ponto de aplicação decidido e registrado como decisão arquitetural | evidence: manual @allan
+- [x] Checagem implementada, disparando só quando a diferença entre `original` e `suggested` é exclusivamente de caixa, pontuação ou acentuação (2026-09-16 23:38, commit `52d33b8`)
+- [x] Casos de teste cobrindo o positivo (`english` para `English`) e o falso positivo (`i'm agree` para `I agree`) (2026-09-16 23:38, commit `52d33b8`)
+- [x] Taxa medida sobre as evidências já gravadas, sem chamada nova ao modelo (2026-09-16 23:38, commit `52d33b8`)
+- [x] Ponto de aplicação decidido e registrado como decisão arquitetural | evidence: manual @allan (2026-09-16 23:38, commit `52d33b8`)

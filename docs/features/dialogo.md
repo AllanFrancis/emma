@@ -14,9 +14,10 @@
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
 - SPEC-20260916-1652 | 2026-09-16 | `e4ecf53` | Eval de personalidade — matriz tom × nível e comparação controlada v4 × v5
 - SPEC-20260916-1652-eval-conversa-multiturno | 2026-09-16 | `pendente` | Eval de conversa multiturno — coerência longitudinal e avanço de missão
+- SPEC-20260916-2048-regra-fala-transcrita | 2026-09-16 | `pendente` | Regra da fala transcrita — C14 torna a DEC-20260916-0312 verificável
 ### Planejadas (future/)
 - SPEC-20260916-2048-semantica-next-action | Semântica de next_action | Correção emitida sem pedir aplicação não é medida por nenhuma checagem
-- SPEC-20260916-2048-regra-fala-transcrita | Regra da fala transcrita | Instrução no prompt não impediu a violação da DEC-20260916-0312
+
 - SPEC-20260916-2048-metodologia-de-eval | Metodologia de eval | Sem controle de parâmetros, diferença isolada não é atribuível ao prompt
 - SPEC-20260916-1652-motor-de-dialogo | Motor de diálogo — server function, strict JSON e fallback | Tira a chave do cliente e garante que um turno nunca morre na tela
 - SPEC-20260916-1652-conversa-e-missoes | Conversa e missões — a tela que é o produto | Traz o catálogo de missões de volta ao domínio
@@ -146,6 +147,7 @@ fazer: `conv-talk-01` e `conv-livre-01` nunca rodaram.
 - DEC-20260916-1611-evidencia-na-correcao [ativa] (SPEC-20260916-1450) — `corrections[].original` é trecho literal da fala do aluno; correção sem evidência é saída inválida. Normaliza caixa, apóstrofo e pontuação de borda (é fala transcrita), mas recusa paráfrase.
 - DEC-20260916-1612-next-action-proposta [ativa] (SPEC-20260916-1450) — `next_action` é PROPOSTA do modelo, não decisão; quem confronta com a etapa real da missão é o núcleo pedagógico. Sem isso, "avançar de etapa" volta para dentro do prompt.
 - DEC-20260916-1613-todos-campos-required [ativa] (SPEC-20260916-1450) — os 9 campos ficam em `required`: o strict mode do Groq segue o structured outputs da OpenAI, que exige `required` completo sob `additionalProperties: false`. Campo opcional de JSON Schema não existe nesse modo.
+- DEC-20260916-2332-grafia-filtrada-no-nucleo [ativa] (SPEC-20260916-2048-regra-fala-transcrita) — correção cuja única diferença é caixa, pontuação ou acento é FILTRADA pelo núcleo pedagógico, não rejeitada pelo `validateTurn`. Rejeitar no validador invalidaria o turno inteiro e o mandaria para retry/fallback por causa de uma correção entre várias — nos 4 casos medidos o resto do turno estava bom. O núcleo descarta a correção e, se a lista esvaziar, rebaixa `next_action` de `retry` (DEC-20260916-1612 já lhe dá essa autoridade). O predicado `isSurfaceOnlyCorrection` fica exportado em `scripts/eval/turn-validator.mjs` e a checagem C14 mede a taxa; a aplicação no núcleo é da SPEC-20260916-1652-nucleo-pedagogico, que precisa portar o predicado para TypeScript.
 - DEC-20260917-0004-retry-de-geracao [ativa] (SPEC-20260916-2048-metodologia-de-eval) — `json_validate_failed` (HTTP 400 com esse `code`) é falha de GERAÇÃO e recebe retry in-process imediato, com teto baixo de 3, cumprindo o que a DEC-20260916-0311 já previa. Orçamento separado do rate limit, que é falha de ESPERA (teto 6, com backoff). Toda tentativa perdida vai para `_failures/` antes do retry e nunca é apagada. Erro de contrato nosso (401, 404, 400 de outra causa) continua abortando a rodada; espera, geração, timeout e rede não.
 
 ## Alternativas consideradas e rejeitadas
