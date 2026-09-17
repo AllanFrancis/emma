@@ -76,7 +76,7 @@ Trabalho de definição e medição, quase todo offline sobre evidência existen
 
 ## Critério de aceite
 
-- [ ] Tabela de coerência `corrections` × `next_action` escrita e revisada, com justificativa por combinação
-- [ ] Checagem nova implementada, com casos de teste para coerente e incoerente
-- [ ] Taxa medida sobre as evidências já gravadas, sem nenhuma chamada nova ao modelo
-- [ ] Decisão registrada sobre resolver por prompt ou pelo núcleo, sustentada pela taxa medida | evidence: manual @allan
+- [x] Tabela de coerência `corrections` × `next_action` escrita e revisada, com justificativa por combinação (2026-09-17 12:41, commit `27e8198`, evidence: tabela-de-coerencia.md revisada e aprovada pelo usuario; as duas linhas sem base empirica (continue_mission e complete_mission com correcao) classificadas INCOERENTES por decisao dele, com a excecao de correcao nao bloqueante recusada explicitamente)
+- [x] Checagem nova implementada, com casos de teste para coerente e incoerente (2026-09-17 12:41, commit `27e8198`, evidence: C15 em CHECKS de grade.mjs + 7 casos de self-test cobrindo coerente (retry), os tres incoerentes (reply, continue_mission, complete_mission), os dois de silencio sem correcao, e a independencia de record. Suite: 33 casos de turno, 15 checagens, 0 falha)
+- [x] Taxa medida sobre as evidências já gravadas, sem nenhuma chamada nova ao modelo (2026-09-17 12:41, commit `27e8198`, evidence: 38 de 61 turnos com correcao (62,3%) nao pedem aplicacao, todos reply. Reproduzivel: node scripts/eval/grade.mjs --levantamento-aplicacao. Zero chamada nova ao modelo. Universo mensuravel 107 turnos; 90 pre-contrato-v2 ficam fora por ausencia do campo. Detalhe em evidence/levantamento-taxa.md)
+- [x] Decisão registrada sobre resolver por prompt ou pelo núcleo, sustentada pela taxa medida | evidence: manual @allan (2026-09-17 12:41, commit `27e8198`, evidence: manual @allan 2026-09-17: nucleo sobrescreve a proposta do modelo. Sustentado pela taxa de 62,3% e pelo hotel-10 gravado com retry no contrato-do-turno-v2 e reply no prompt-v5, que descarta instrucao de prompt como garantia. Consistente com DEC-20260916-1612)
