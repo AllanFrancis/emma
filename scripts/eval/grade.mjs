@@ -328,6 +328,105 @@ function buildSelfTestCases() {
   ];
 }
 
+// Casos da matriz: um comparador que nunca acusa nada passa em qualquer rodada e nao
+// protege nada. Estes casos provam que ele acusa o que deve e SILENCIA no que e legitimo —
+// em particular, correcao diferente entre NIVEIS e adaptacao correta, nao violacao.
+function buildMatrizTestCases() {
+  const celula = (nivel, tom, turn) => ({ nivel, tom, turn });
+  const comCorrecao = (over = {}) => createFixture(over);
+  const semCorrecao = (reply) =>
+    createFixture({ corrections: [], next_action: "reply", reply_en: reply });
+
+  return [
+    {
+      name: "mesma correcao nos dois tons, falas diferentes",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Nice! Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "Got it. Which size?" })),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "tom direto corrige DIFERENTE — viola invariancia",
+      celulas: [
+        celula(1, "tranquila", comCorrecao()),
+        celula(
+          1,
+          "direta",
+          comCorrecao({
+            corrections: [createCorrection({ suggested: "Could I have a coffee" })],
+            reply_en: "Which size?",
+          }),
+        ),
+      ],
+      invariancia: 1,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "tom direto corrige MAIS — viola teto e invariancia",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Nice! Small or large?" })),
+        celula(
+          1,
+          "direta",
+          comCorrecao({
+            corrections: [createCorrection(), createCorrection({ category: "grammar" })],
+            reply_en: "Size?",
+          }),
+        ),
+      ],
+      invariancia: 1,
+      diferenca: 0,
+      teto: 1,
+    },
+    {
+      name: "reply_en identico entre tons — personalidade decorativa",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "Small or large?" })),
+      ],
+      invariancia: 0,
+      diferenca: 1,
+      teto: 0,
+    },
+    {
+      name: "identico so em caixa e espaco ainda e identico",
+      celulas: [
+        celula(1, "tranquila", comCorrecao({ reply_en: "Small or large?" })),
+        celula(1, "direta", comCorrecao({ reply_en: "  SMALL OR   LARGE? " })),
+      ],
+      invariancia: 0,
+      diferenca: 1,
+      teto: 0,
+    },
+    {
+      name: "correcao diferente entre NIVEIS e legitima, nao violacao",
+      celulas: [
+        celula(1, "tranquila", semCorrecao("Nice! Small or large?")),
+        celula(1, "direta", semCorrecao("Got it. Which size?")),
+        celula(4, "tranquila", comCorrecao({ reply_en: "Sure. What size would you like?" })),
+        celula(4, "direta", comCorrecao({ reply_en: "Which size?" })),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+    {
+      name: "controle em ambos os tons, sem correcao nenhuma",
+      celulas: [
+        celula(4, "tranquila", semCorrecao("That sounds great. What did you do?")),
+        celula(4, "direta", semCorrecao("Nice. And what did you do?")),
+      ],
+      invariancia: 0,
+      diferenca: 0,
+      teto: 0,
+    },
+  ];
+}
+
 function runSelfTest() {
   const cases = buildSelfTestCases();
   let failures = 0;
@@ -341,8 +440,106 @@ function runSelfTest() {
       );
     }
   }
+
+  // Um caso de teste por linha da tabela de semantica do main.md. Sem eles, a mudanca do
+  // gate seria indistinguivel de uma flexibilizacao feita depois de ver o resultado.
+  const geracaoCases = [
+    {
+      nome: "valida na 1a tentativa",
+      entrada: { id: "a", falhasDeContrato: 0, temEvidenciaValida: true },
+      classe: "valid_first_attempt",
+      reprova: false,
+    },
+    {
+      nome: "json_validate_failed + retry bem-sucedido",
+      entrada: { id: "b", falhasDeContrato: 1, temEvidenciaValida: true },
+      classe: "recovered_after_retry",
+      reprova: false,
+    },
+    {
+      nome: "varias falhas mas recuperada dentro do teto",
+      entrada: { id: "c", falhasDeContrato: 6, temEvidenciaValida: true },
+      classe: "recovered_after_retry",
+      reprova: false,
+    },
+    {
+      nome: "retries esgotados sem resposta valida",
+      entrada: { id: "d", falhasDeContrato: 6, temEvidenciaValida: false },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "erro de contrato nao recuperavel (1 falha, sem evidencia)",
+      entrada: { id: "e", falhasDeContrato: 1, temEvidenciaValida: false },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "recuperou porem acima do teto de retries",
+      entrada: { id: "f", falhasDeContrato: 7, temEvidenciaValida: true },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "fala nao executada nao e falha de confiabilidade",
+      entrada: { id: "g", falhasDeContrato: 0, temEvidenciaValida: false },
+      classe: "nao_executada",
+      reprova: false,
+    },
+  ];
+  for (const c of geracaoCases) {
+    const r = classificarGeracao(c.entrada);
+    if (r.classe !== c.classe) {
+      failures += 1;
+      console.log(`FALHA geracao · ${c.nome}: esperado classe ${c.classe}, obtido ${r.classe}`);
+    }
+    if (r.reprova !== c.reprova) {
+      failures += 1;
+      console.log(
+        `FALHA geracao · ${c.nome}: esperado ${c.reprova ? "reprovar" : "nao reprovar"}, obtido ${r.reprova ? "reprovou" : "nao reprovou"}`,
+      );
+    }
+  }
+
+  // O gate de tamanho valida o DESENHO. Um numero unico para todos os grupos deixaria
+  // passar matriz pela metade OU reprovaria a comparacao controlada para sempre.
+  const tamanhoCases = [
+    { model: "m/matriz", n: 48, ok: true, nome: "matriz completa" },
+    { model: "m/matriz", n: 47, ok: false, nome: "matriz com uma celula faltando" },
+    { model: "m/matriz", n: 49, ok: false, nome: "matriz com celula a mais que o previsto" },
+    { model: "m/prompt-v5", n: 7, ok: true, nome: "comparacao controlada completa" },
+    { model: "m/prompt-v5", n: 1, ok: false, nome: "comparacao controlada com 1 de 7" },
+    { model: "m/prompt-v5", n: 40, ok: false, nome: "comparacao controlada com turnos a mais" },
+    { model: "m", n: 45, ok: true, nome: "dataset acima do minimo" },
+    { model: "m", n: 39, ok: false, nome: "dataset abaixo do minimo" },
+  ];
+  for (const c of tamanhoCases) {
+    const obtido = conferirTamanho(c.model, c.n).ok;
+    if (obtido === c.ok) continue;
+    failures += 1;
+    console.log(
+      `FALHA tamanho · ${c.nome}: esperado ${c.ok ? "aceitar" : "recusar"}, obtido ${obtido ? "aceitou" : "recusou"}`,
+    );
+  }
+
+  const matrizCases = buildMatrizTestCases();
+  for (const c of matrizCases) {
+    const obtido = {
+      invariancia: violacoesDeInvariancia(c.celulas).length,
+      diferenca: violacoesDeDiferenca(c.celulas).length,
+      teto: violacoesDeTeto(c.celulas).length,
+    };
+    for (const chave of ["invariancia", "diferenca", "teto"]) {
+      if (obtido[chave] === c[chave]) continue;
+      failures += 1;
+      console.log(
+        `FALHA matriz · ${c.name} · ${chave}: esperado ${c[chave]} violacao(oes), obtido ${obtido[chave]}`,
+      );
+    }
+  }
+
   console.log(
-    `\nself-test: ${cases.length} casos · ${CHECKS.length} checagens · ${failures} falha(s)`,
+    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho + ${geracaoCases.length} de classificacao de geracao · ${CHECKS.length} checagens · ${failures} falha(s)`,
   );
   if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
   process.exit(failures > 0 ? 1 : 0);
@@ -357,7 +554,19 @@ function findEvidenceTargets() {
     if (!fs.existsSync(evidenceDir)) continue;
     for (const model of fs.readdirSync(evidenceDir).filter((name) => !name.startsWith("_"))) {
       const modelDir = path.join(evidenceDir, model);
-      if (fs.statSync(modelDir).isDirectory()) targets.push({ model, modelDir });
+      if (!fs.statSync(modelDir).isDirectory()) continue;
+      // Uma SPEC pode ter rodadas com propositos diferentes (a matriz de personalidade e a
+      // comparacao de prompt). Cada subpasta do modelo e um alvo proprio, para as medidas
+      // nao se misturarem numa media que nao significa nada.
+      const entradas = fs.readdirSync(modelDir).filter((name) => !name.startsWith("_"));
+      const temJsonSolto = entradas.some((name) => name.endsWith(".json"));
+      const subgrupos = entradas.filter((name) =>
+        fs.statSync(path.join(modelDir, name)).isDirectory(),
+      );
+      if (temJsonSolto) targets.push({ model, modelDir });
+      for (const grupo of subgrupos) {
+        targets.push({ model: `${model}/${grupo}`, modelDir: path.join(modelDir, grupo) });
+      }
     }
   }
   return targets;
@@ -373,13 +582,23 @@ function extractTurn(rawEvidence) {
   }
 }
 
+// Na matriz o nivel e dimensao de execucao: a mesma fala roda em nivel 1 e 4. Medir
+// comprimento (C8) contra o `nivel_esperado` do dataset daria o resultado errado nas duas
+// celulas, entao o nivel gravado na evidencia tem precedencia.
+function recordEfetivo(record, rawEvidence) {
+  const nivel = rawEvidence?.nivel;
+  if (!Number.isInteger(nivel) || nivel === record.nivel_esperado) return record;
+  return { ...record, nivel_esperado: nivel };
+}
+
 function gradeModel(target, dataset) {
   const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
   const counts = {};
   let unreadable = 0;
   for (const file of files) {
     const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
-    const record = dataset.get(rawEvidence.id);
+    const base = dataset.get(rawEvidence.id);
+    const record = base ? recordEfetivo(base, rawEvidence) : base;
     const turn = extractTurn(rawEvidence);
     if (!turn || !record) {
       unreadable += 1;
@@ -449,6 +668,97 @@ function printTable() {
 // o gate diz a verdade sobre o que ainda nao foi medido.
 const MINIMO_TURNOS = 40;
 
+// Cada DESENHO experimental tem um tamanho proprio, e o gate valida o desenho — nao
+// aplica um numero unico a todos. Afrouxar para o menor deles deixaria passar uma matriz
+// pela metade; exigir o maior de todos reprovaria a comparacao controlada para sempre,
+// porque ela tem 7 falas POR DESENHO e nao por falta de execucao.
+function desenhoDoGrupo(model) {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  if (model.endsWith("/matriz")) {
+    const n = matriz.falas.length * matriz.niveis.length * matriz.tons.length;
+    return {
+      rotulo: `matriz ${matriz.falas.length}x${matriz.niveis.length}x${matriz.tons.length}`,
+      exigencia: "exata",
+      n,
+    };
+  }
+  if (/\/prompt-/.test(model)) {
+    return {
+      rotulo: "comparacao controlada",
+      exigencia: "exata",
+      n: matriz.comparacao.falas.length,
+    };
+  }
+  // Rodada do dataset inteiro: minimo, porque o dataset pode crescer sem invalidar nada.
+  return { rotulo: "dataset", exigencia: "minima", n: MINIMO_TURNOS };
+}
+
+// Classificacao de falha de geracao — decisao do usuario em 2026-09-16 20:43, registrada no
+// journal ANTES desta implementacao. Separa duas dimensoes que estavam colapsadas numa so:
+// VALIDADE FINAL DO CONTRATO (a execucao entregou turno valido?) e CONFIABILIDADE DA
+// GERACAO (quantas vezes o modelo falhou no caminho?). Falha recuperada nao reprova o
+// contrato e NUNCA e apagada da contagem.
+//
+// Fundamento: DEC-20260916-0311 ja prevê retry e fallback para `json_validate_failed`.
+// Isto aplica a decisao ao gate, em vez de abrir excecao para acomodar um resultado.
+const MAX_RETRIES_CONTRATO = 6; // espelha MAX_TENTATIVAS do run.mjs
+
+/**
+ * Entrada por fala: quantas falhas de contrato foram registradas e se existe evidencia
+ * final valida. Saida: a classe da fala e se ela reprova o contrato.
+ * Funcao PURA — nao le disco, para ser testavel sem rodada.
+ */
+function classificarGeracao({ id, falhasDeContrato, temEvidenciaValida }) {
+  if (falhasDeContrato === 0 && temEvidenciaValida) {
+    return { id, classe: "valid_first_attempt", reprova: false };
+  }
+  if (falhasDeContrato > 0 && temEvidenciaValida) {
+    if (falhasDeContrato > MAX_RETRIES_CONTRATO) {
+      // Recuperou, mas acima do teto: o contrato exige que o teto seja respeitado.
+      return {
+        id,
+        classe: "unrecovered_contract_failure",
+        reprova: true,
+        motivo: "teto de retries excedido",
+      };
+    }
+    return {
+      id,
+      classe: "recovered_after_retry",
+      reprova: false,
+      tentativas: falhasDeContrato + 1,
+    };
+  }
+  if (falhasDeContrato > 0 && !temEvidenciaValida) {
+    return {
+      id,
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+      motivo: "nenhuma tentativa produziu resposta valida",
+    };
+  }
+  // Sem falha e sem evidencia: a fala simplesmente nao foi executada. Quem reprova isso e
+  // o gate de TAMANHO do desenho, nao o de confiabilidade — cada um no seu papel.
+  return { id, classe: "nao_executada", reprova: false };
+}
+
+function conferirTamanho(model, encontrados) {
+  const d = desenhoDoGrupo(model);
+  if (d.exigencia === "exata" && encontrados !== d.n) {
+    return {
+      ok: false,
+      nota: `${d.rotulo} exige EXATAMENTE ${d.n} turnos (encontrados ${encontrados}) — desenho ${encontrados < d.n ? "incompleto" : "com turnos a mais que o previsto"}`,
+    };
+  }
+  if (d.exigencia === "minima" && encontrados < d.n) {
+    return {
+      ok: false,
+      nota: `${d.rotulo} exige ao menos ${d.n} turnos (encontrados ${encontrados})`,
+    };
+  }
+  return { ok: true, nota: `${d.rotulo} · ${encontrados}/${d.n}` };
+}
+
 function assertContract() {
   const targets = findEvidenceTargets();
   if (targets.length === 0) {
@@ -466,9 +776,15 @@ function assertContract() {
     let semEvidencia = 0;
     let semRegistro = 0;
 
+    // A unidade da metrica de confiabilidade e a GERACAO (um arquivo de evidencia), nao a
+    // fala: na matriz a mesma fala produz 4 geracoes. Contar por fala subnotificaria 48
+    // geracoes validas como 12.
+    const validasPorId = new Map();
+
     for (const file of files) {
       const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
-      const record = dataset.get(rawEvidence.id);
+      const base = dataset.get(rawEvidence.id);
+      const record = base ? recordEfetivo(base, rawEvidence) : base;
       const turn = extractTurn(rawEvidence);
       if (!record) {
         semRegistro += 1;
@@ -478,45 +794,97 @@ function assertContract() {
         contratoInvalido += 1;
         continue;
       }
-      if (validateEvidence(turn, record.aluno).length > 0) semEvidencia += 1;
+      if (validateEvidence(turn, record.aluno).length > 0) {
+        semEvidencia += 1;
+        continue;
+      }
+      validasPorId.set(rawEvidence.id, (validasPorId.get(rawEvidence.id) ?? 0) + 1);
     }
 
-    // Falha de rate limit e transitoria: o teto de tokens do tier gratuito nao diz nada
-    // sobre o contrato, e conta-la como falha de contrato travaria o criterio para sempre.
-    // Falha de CONTRATO (json_validate_failed, HTTP 4xx do schema) e outra historia.
+    // Rate limit e infraestrutura sao dimensao SEPARADA: nao dizem nada sobre a semantica
+    // do modelo. Falha de contrato (`json_validate_failed`, 4xx de schema) e agrupada POR
+    // FALA, porque a classificacao depende de a fala ter ou nao evidencia valida no fim.
     const failuresDir = path.join(target.modelDir, "_failures");
-    let falhasDeContrato = 0;
-    let falhasTransitorias = 0;
+    const falhasContratoPorFala = new Map();
+    let falhasDeInfra = 0;
     if (fs.existsSync(failuresDir)) {
       for (const name of fs.readdirSync(failuresDir).filter((f) => f.endsWith(".json"))) {
         const registro = JSON.parse(fs.readFileSync(path.join(failuresDir, name), "utf8"));
-        if (registro?.erro?.error === "rate_limit") falhasTransitorias += 1;
-        else falhasDeContrato += 1;
+        if (registro?.erro?.error === "rate_limit") {
+          falhasDeInfra += 1;
+          continue;
+        }
+        const id = registro?.id ?? "(sem id)";
+        falhasContratoPorFala.set(id, (falhasContratoPorFala.get(id) ?? 0) + 1);
       }
     }
 
+    // Metricas de recuperacao, nomeadas na decisao do usuario. Toda fala com evidencia ou
+    // com falha registrada e classificada; nenhuma ocorrencia e apagada.
+    const metrica = {
+      valid_first_attempt: 0,
+      recovered_after_retry: 0,
+      unrecovered_contract_failure: 0,
+    };
+    const recuperadas = [];
+    const naoRecuperadas = [];
+    const idsConhecidos = new Set([...validasPorId.keys(), ...falhasContratoPorFala.keys()]);
+    for (const id of idsConhecidos) {
+      const validas = validasPorId.get(id) ?? 0;
+      const r = classificarGeracao({
+        id,
+        falhasDeContrato: falhasContratoPorFala.get(id) ?? 0,
+        temEvidenciaValida: validas > 0,
+      });
+      if (r.classe === "valid_first_attempt") {
+        metrica.valid_first_attempt += validas;
+      } else if (r.classe === "recovered_after_retry") {
+        // Os registros de falha sao gravados por FALA, nao por celula, entao nao da para
+        // dizer QUAL geracao recuperou. Conta-se 1 recuperacao e as demais geracoes
+        // validas da mesma fala seguem como validas de primeira.
+        metrica.recovered_after_retry += 1;
+        metrica.valid_first_attempt += Math.max(0, validas - 1);
+        recuperadas.push(r);
+      } else if (r.classe === "unrecovered_contract_failure") {
+        metrica.unrecovered_contract_failure += 1;
+        naoRecuperadas.push(r);
+      }
+    }
+
+    const tamanho = conferirTamanho(target.model, files.length);
+
     const linha = [
-      `${target.model}: ${files.length} turnos`,
+      `${target.model}: ${tamanho.nota}`,
       `contrato invalido=${contratoInvalido}`,
-      `sem evidencia=${semEvidencia}`,
-      `falhas de contrato=${falhasDeContrato}`,
+      `sem evidencia citada=${semEvidencia}`,
+      `nao recuperadas=${metrica.unrecovered_contract_failure}`,
     ].join(" · ");
 
+    // VALIDADE DO CONTRATO: falha RECUPERADA nao reprova. O que reprova e desenho
+    // incompleto, turno gravado invalido, correcao sem evidencia, ou falha nao recuperada.
     const reprovou =
-      files.length < MINIMO_TURNOS ||
+      !tamanho.ok ||
       contratoInvalido > 0 ||
       semEvidencia > 0 ||
-      falhasDeContrato > 0 ||
+      metrica.unrecovered_contract_failure > 0 ||
       semRegistro > 0;
     console.log(`${reprovou ? "ERRO  " : "ok    "}${linha}`);
-    if (falhasTransitorias > 0) {
+
+    // CONFIABILIDADE DA GERACAO: reportada SEMPRE, inclusive quando o contrato passa.
+    console.log(
+      `      confiabilidade: valid_first_attempt=${metrica.valid_first_attempt} · recovered_after_retry=${metrica.recovered_after_retry} · unrecovered_contract_failure=${metrica.unrecovered_contract_failure}`,
+    );
+    for (const r of recuperadas) {
       console.log(
-        `      ${falhasTransitorias} falha(s) de rate limit ignorada(s) — transitoria, nao e falha de contrato`,
+        `      RECUPERADA  ${r.id}: json_validate_failed em ${r.tentativas - 1} tentativa(s), resposta valida depois — contabilizada, nao apagada`,
       );
     }
-    if (files.length < MINIMO_TURNOS) {
+    for (const r of naoRecuperadas) {
+      console.log(`      NAO RECUPERADA  ${r.id}: ${r.motivo}`);
+    }
+    if (falhasDeInfra > 0) {
       console.log(
-        `      apenas ${files.length} turnos — o criterio exige ao menos ${MINIMO_TURNOS}`,
+        `      infra: ${falhasDeInfra} rate limit — dimensao separada, nao e falha semantica do modelo`,
       );
     }
     if (semRegistro > 0) {
@@ -526,11 +894,421 @@ function assertContract() {
   }
 
   console.log(
-    `\nassert-contract: ${targets.length} modelo(s) · ${problemas} reprovado(s) sob o contrato v2`,
+    `\nassert-contract: ${targets.length} desenho(s) · ${problemas} reprovado(s) na VALIDADE do contrato`,
+  );
+  console.log(
+    "Validade e confiabilidade sao dimensoes distintas: o desenho pode passar e ainda haver falha de geracao registrada.",
   );
   process.exit(problemas > 0 ? 1 : 0);
 }
 
-if (process.argv.includes("--self-test")) runSelfTest();
-else if (process.argv.includes("--assert-contract")) assertContract();
+// ─────────────────────────── matriz de personalidade ───────────────────────────
+// A pergunta da SPEC-20260916-1652 nao e "quao bom foi o turno", e "o que mudou e o que
+// NAO mudou quando o tom e o nivel mudaram". Isso exige comparar celulas entre si, e nao
+// agregar tudo numa media — media de 4 celulas esconde exatamente o que se quer medir.
+
+const MATRIZ_PATH = path.join(CURRENT_DIR, "matriz.json");
+
+// Campos que a personalidade NAO pode tocar. Se qualquer um diverge entre tons, o produto
+// tem duas pedagogias e nao duas personalidades.
+const CAMPOS_PROTEGIDOS = ["suggested", "category"];
+
+function carregarCelulas() {
+  const alvos = findEvidenceTargets().filter((t) => t.model.endsWith("/matriz"));
+  const porFala = new Map();
+  for (const alvo of alvos) {
+    for (const file of fs.readdirSync(alvo.modelDir).filter((f) => f.endsWith(".json"))) {
+      const ev = JSON.parse(fs.readFileSync(path.join(alvo.modelDir, file), "utf8"));
+      const turn = extractTurn(ev);
+      if (!turn) continue;
+      if (!porFala.has(ev.id)) porFala.set(ev.id, []);
+      porFala.get(ev.id).push({ nivel: ev.nivel, tom: ev.tom, turn });
+    }
+  }
+  return porFala;
+}
+
+function assinaturaPedagogica(turn) {
+  const corr = Array.isArray(turn.corrections) ? turn.corrections : [];
+  return JSON.stringify({
+    itens: corr.map((c) => CAMPOS_PROTEGIDOS.map((k) => String(c?.[k] ?? "")).join("|")).sort(),
+    focus: String(turn.focus ?? ""),
+  });
+}
+
+function normalizarTexto(t) {
+  return String(t ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Toda assercao da matriz exige a matriz COMPLETA antes de concluir qualquer coisa.
+// Sem isso, uma rodada pela metade faz as assercoes passarem por falta de dados — e um
+// gate que passa antes de a medicao terminar e pior que gate nenhum.
+function exigirCelulas(porFala) {
+  if (porFala.size === 0) {
+    console.log("ERRO  nenhuma celula da matriz gravada — a rodada ainda nao aconteceu.");
+    console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --matriz");
+    process.exit(1);
+  }
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const esperadas = matriz.niveis.length * matriz.tons.length;
+  const incompletas = [];
+  for (const fala of matriz.falas) {
+    const celulas = porFala.get(fala.id) ?? [];
+    const chaves = new Set(celulas.map((c) => `n${c.nivel}-${c.tom}`));
+    if (chaves.size !== esperadas) incompletas.push(`${fala.id} (${chaves.size}/${esperadas})`);
+  }
+  if (incompletas.length > 0) {
+    console.log(
+      `ERRO  matriz INCOMPLETA — ${incompletas.length} de ${matriz.falas.length} falas sem todas as celulas.`,
+    );
+    console.log(`      ${incompletas.join(", ")}`);
+    console.log("      Assercao sobre matriz parcial nao conclui nada; termine a rodada primeiro.");
+    process.exit(1);
+  }
+}
+
+function assertCompleto() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const esperadas = matriz.niveis.length * matriz.tons.length;
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let problemas = 0;
+  for (const fala of matriz.falas) {
+    const celulas = porFala.get(fala.id) ?? [];
+    const chaves = new Set(celulas.map((c) => `n${c.nivel}-${c.tom}`));
+    const faltando = [];
+    for (const n of matriz.niveis) {
+      for (const t of matriz.tons) if (!chaves.has(`n${n}-${t}`)) faltando.push(`n${n}-${t}`);
+    }
+    if (faltando.length > 0) {
+      console.log(
+        `ERRO  ${fala.id}: ${chaves.size}/${esperadas} celulas — falta ${faltando.join(", ")}`,
+      );
+      problemas += 1;
+    }
+  }
+  console.log(
+    `\nassert-completo: ${matriz.falas.length} falas × ${esperadas} celulas · ${problemas} incompleta(s)`,
+  );
+  process.exit(problemas > 0 ? 1 : 0);
+}
+
+// A invariancia e POR NIVEL: nivel diferente pode legitimamente mudar o que se corrige
+// (um erro sutil nao vale a pena para quem esta comecando). O que nao pode mudar e a
+// correcao entre TONS no mesmo nivel. Comparar as 4 celulas de uma vez confundiria as
+// duas coisas e acusaria como violacao o que e adaptacao correta ao nivel.
+function agruparPorNivel(celulas) {
+  const porNivel = new Map();
+  for (const c of celulas) {
+    if (!porNivel.has(c.nivel)) porNivel.set(c.nivel, []);
+    porNivel.get(c.nivel).push(c);
+  }
+  return porNivel;
+}
+
+// As tres funcoes abaixo sao PURAS: recebem celulas e devolvem violacoes, sem ler disco
+// nem sair do processo. E o que permite testa-las no self-test sem gastar API.
+function violacoesDeInvariancia(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    const assinaturas = new Map();
+    for (const c of grupo) assinaturas.set(c.tom, assinaturaPedagogica(c.turn));
+    if (new Set(assinaturas.values()).size > 1) out.push({ nivel, grupo });
+  }
+  return out;
+}
+
+function violacoesDeDiferenca(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    if (grupo.length < 2) continue;
+    const falas = grupo.map((c) => normalizarTexto(c.turn.reply_en));
+    if (new Set(falas).size === 1) out.push({ nivel, grupo });
+  }
+  return out;
+}
+
+function violacoesDeTeto(celulas) {
+  const out = [];
+  for (const [nivel, grupo] of agruparPorNivel(celulas)) {
+    const contagens = grupo.map((c) => ({ tom: c.tom, n: countCorrections(c.turn) }));
+    if (new Set(contagens.map((x) => x.n)).size > 1) out.push({ nivel, contagens });
+  }
+  return out;
+}
+
+function assertInvariancia() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let violacoes = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeInvariancia(celulas)) {
+      violacoes += 1;
+      console.log(`ERRO  ${id} nivel ${v.nivel}: a correcao MUDOU entre tons`);
+      for (const c of v.grupo) {
+        const corr = Array.isArray(c.turn.corrections) ? c.turn.corrections : [];
+        const itens =
+          corr.map((x) => `"${x.original}" -> "${x.suggested}" (${x.category})`).join(" · ") ||
+          "(nenhuma)";
+        console.log(`        ${c.tom}: ${corr.length} correcao(oes) — ${itens}`);
+        console.log(`          focus: "${c.turn.focus ?? ""}"`);
+      }
+    }
+  }
+  console.log(
+    `\nassert-invariancia: ${porFala.size} falas · ${violacoes} violacao(oes) da verdade pedagogica`,
+  );
+  process.exit(violacoes > 0 ? 1 : 0);
+}
+
+function assertDiferenca() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let iguais = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeDiferenca(celulas)) {
+      iguais += 1;
+      console.log(
+        `ERRO  ${id} nivel ${v.nivel}: reply_en IDENTICO entre tons — personalidade decorativa`,
+      );
+      console.log(`        "${v.grupo[0].turn.reply_en}"`);
+    }
+  }
+  console.log(`\nassert-diferenca: ${porFala.size} falas · ${iguais} sem diferenca de estilo`);
+  process.exit(iguais > 0 ? 1 : 0);
+}
+
+function assertTeto() {
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+  let desequilibrios = 0;
+  for (const [id, celulas] of porFala) {
+    for (const v of violacoesDeTeto(celulas)) {
+      desequilibrios += 1;
+      console.log(
+        `ERRO  ${id} nivel ${v.nivel}: quantidade de correcao difere por tom — ${v.contagens.map((x) => `${x.tom}=${x.n}`).join(" · ")}`,
+      );
+    }
+  }
+  console.log(
+    `\nassert-teto: ${porFala.size} falas · ${desequilibrios} caso(s) em que o tom mudou QUANTO se corrige`,
+  );
+  process.exit(desequilibrios > 0 ? 1 : 0);
+}
+
+// As assercoes dizem se algo quebrou; elas nao dizem se os dois tons SOAM diferentes a
+// um leitor humano. Este relatorio existe para o criterio de leitura humana e para a
+// invariante "nunca afirmar ganho sem mostrar as saidas lado a lado".
+function relatorioMatriz() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const dataset = loadDataset();
+  const porFala = carregarCelulas();
+  exigirCelulas(porFala);
+
+  for (const fala of matriz.falas) {
+    const record = dataset.get(fala.id);
+    const celulas = porFala.get(fala.id) ?? [];
+    console.log(`\n${"=".repeat(78)}`);
+    console.log(`${fala.id} · ${record.tipo_erro} · aluno: "${record.aluno}"`);
+    console.log(`motivo da inclusao: ${fala.motivo}`);
+    if (record.deve_corrigir.length > 0) {
+      console.log(`deve_corrigir: ${JSON.stringify(record.deve_corrigir)}`);
+    }
+    if (record.nao_deve_corrigir.length > 0) {
+      console.log(`nao_deve_corrigir: ${JSON.stringify(record.nao_deve_corrigir)}`);
+    }
+
+    for (const nivel of matriz.niveis) {
+      const grupo = celulas.filter((c) => c.nivel === nivel);
+      console.log(`\n  --- nivel ${nivel} ---`);
+      // A correcao aparece UMA vez quando e igual nos dois tons: e o resultado esperado,
+      // e repetir esconderia a diferenca real, que esta na fala e na explicacao.
+      const assinaturas = new Set(grupo.map((c) => assinaturaPedagogica(c.turn)));
+      if (assinaturas.size === 1 && grupo.length > 0) {
+        const corr = grupo[0].turn.corrections ?? [];
+        console.log(
+          `  correcao (IGUAL nos dois tons): ${corr.length === 0 ? "nenhuma" : ""}`.trimEnd(),
+        );
+        for (const c of corr)
+          console.log(`    "${c.original}" -> "${c.suggested}" (${c.category})`);
+      } else {
+        console.log(`  correcao DIVERGIU entre tons:`);
+        for (const c of grupo) {
+          const corr = c.turn.corrections ?? [];
+          console.log(
+            `    ${c.tom}: ${corr.map((x) => `"${x.original}" -> "${x.suggested}"`).join(" · ") || "nenhuma"}`,
+          );
+        }
+      }
+      for (const c of grupo) {
+        console.log(`  [${c.tom}] ${c.turn.reply_en}`);
+        console.log(`           instrucao: ${c.turn.instruction_pt}`);
+        for (const x of c.turn.corrections ?? [])
+          console.log(`           expl: ${x.explanation_pt}`);
+        console.log(`           next_action: ${c.turn.next_action}`);
+      }
+    }
+  }
+  console.log(`\n${"=".repeat(78)}`);
+  console.log("ESTE RELATORIO NAO APROVA NADA. As assercoes dizem o que quebrou;");
+  console.log("se os dois tons soam de fato diferentes e julgamento humano.");
+}
+
+// Comparacao cirurgica v4 -> v5 nas 7 falas que falharam. A evidencia do v4 esta
+// arquivada; a do v5 foi gravada no grupo prompt-v5 desta SPEC.
+function compararPrompt() {
+  const matriz = JSON.parse(fs.readFileSync(MATRIZ_PATH, "utf8"));
+  const dataset = loadDataset();
+  const v4Dir = path.join(
+    PROJECT_ROOT,
+    "docs",
+    "archive",
+    "SPEC-20260916-1450-contrato-do-turno-v2",
+    "evidence",
+    "openai_gpt-oss-20b",
+  );
+  const alvoV5 = findEvidenceTargets().find((t) => t.model.includes("/prompt-"));
+  if (!alvoV5) {
+    console.log("ERRO  nenhuma evidencia do prompt novo — a comparacao ainda nao aconteceu.");
+    console.log("rode: GROQ_API_KEY=<chave> node scripts/eval/run.mjs --comparar-prompt");
+    process.exit(1);
+  }
+
+  let ausentes = 0;
+  const linhas = [];
+  for (const alvo of matriz.comparacao.falas) {
+    const p4 = path.join(v4Dir, `${alvo.id}.json`);
+    const p5 = path.join(alvoV5.modelDir, `${alvo.id}.json`);
+    if (!fs.existsSync(p4) || !fs.existsSync(p5)) {
+      console.log(`ERRO  ${alvo.id}: falta evidencia (${!fs.existsSync(p4) ? "v4" : "v5"})`);
+      ausentes += 1;
+      continue;
+    }
+    const e4 = JSON.parse(fs.readFileSync(p4, "utf8"));
+    const e5 = JSON.parse(fs.readFileSync(p5, "utf8"));
+    const t4 = extractTurn(e4);
+    const t5 = extractTurn(e5);
+    const base = dataset.get(alvo.id);
+    const r4 = evaluateTurn(t4, recordEfetivo(base, e4));
+    const r5 = evaluateTurn(t5, recordEfetivo(base, e5));
+    linhas.push({ alvo, base, t4, t5, r4, r5 });
+  }
+
+  for (const l of linhas) {
+    console.log(`\n===== ${l.alvo.id} · falha no v4: ${l.alvo.falha_v4} =====`);
+    console.log(`aluno: "${l.base.aluno}"`);
+    console.log(`deve_corrigir: ${JSON.stringify(l.base.deve_corrigir)}`);
+    for (const [rotulo, turn] of [
+      ["v4", l.t4],
+      ["v5", l.t5],
+    ]) {
+      const corr = Array.isArray(turn.corrections) ? turn.corrections : [];
+      console.log(`  [${rotulo}] ${corr.length} correcao(oes)`);
+      for (const c of corr) {
+        console.log(`       "${c.original}" -> "${c.suggested}" (${c.category})`);
+        console.log(`       ${c.explanation_pt}`);
+      }
+      if (corr.length === 0) console.log(`       suggestion_en: "${turn.suggestion_en}"`);
+    }
+    const mudou = ["C4", "C5", "C11", "C12", "C13"]
+      .filter((k) => l.r4[k] !== l.r5[k])
+      .map((k) => `${k}: ${l.r4[k]} -> ${l.r5[k]}`);
+    console.log(`  delta: ${mudou.length ? mudou.join(" · ") : "nenhuma checagem mudou"}`);
+  }
+
+  // Veredito por fala, olhando as checagens que medem PEDAGOGIA (nao forma).
+  const CHAVES_PEDAGOGICAS = ["C4", "C5", "C13"];
+  const vereditoDe = (l) => {
+    const up = CHAVES_PEDAGOGICAS.filter((k) => l.r4[k] === false && l.r5[k] === true);
+    const down = CHAVES_PEDAGOGICAS.filter((k) => l.r4[k] === true && l.r5[k] === false);
+    if (up.length && down.length) return { rotulo: "TROCA", detalhe: `+${up} / -${down}` };
+    if (up.length) return { rotulo: "MELHORA", detalhe: `+${up}` };
+    if (down.length) return { rotulo: "REGRESSAO", detalhe: `-${down}` };
+    return { rotulo: "equivalencia", detalhe: "" };
+  };
+
+  // Confianca vem de CORROBORACAO, nao de tamanho de efeito. Sem seed e sem temperature
+  // fixada, um par v4/v5 e n=1 por versao: qualquer diferenca isolada pode ser amostragem.
+  // Se a fala tambem esta na matriz, as celulas dizem se o comportamento se repete.
+  const matrizPorFala = carregarCelulasSeExistir();
+  const confiancaDe = (id) => {
+    const celulas = matrizPorFala.get(id);
+    if (!celulas || celulas.length === 0) {
+      return "BAIXA — n=1 por versao, sem seed/temperature e sem corroboracao na matriz";
+    }
+    const corrigiram = celulas.filter((c) => countCorrections(c.turn) > 0).length;
+    const consistente = corrigiram === 0 || corrigiram === celulas.length;
+    return `${consistente ? "MEDIA" : "BAIXA"} — n=1 por versao; matriz: ${corrigiram}/${celulas.length} celulas corrigiram${consistente ? " (comportamento consistente)" : " (comportamento misto = assinatura de amostragem)"}`;
+  };
+
+  console.log(
+    `\n${"=".repeat(78)}\nTABELA FINAL — v4 x v5 em condicao identica (nivel do dataset, tom tranquila)\n`,
+  );
+  for (const l of linhas) {
+    const c4 = (r) => (r.C4 === null ? "n/a" : r.C4 ? "passa" : "FALHA");
+    const c5 = (r) => (r.C5 === null ? "n/a" : r.C5 ? "passa" : "FALHA");
+    const n4 = (l.t4.corrections ?? []).length;
+    const n5 = (l.t5.corrections ?? []).length;
+    const v = vereditoDe(l);
+    const sug4 = (l.t4.corrections ?? []).map((x) => x.suggested);
+    const sug5 = (l.t5.corrections ?? []).map((x) => x.suggested);
+    const mesmaCorrecao =
+      n4 === n5 && sug4.every((s, i) => s.toLowerCase() === (sug5[i] ?? "").toLowerCase());
+
+    console.log(`[${l.alvo.id}] ${l.base.tipo_erro} · falha no v4: ${l.alvo.falha_v4}`);
+    console.log(`  aluno: "${l.base.aluno}"`);
+    console.log(`  correcoes emitidas ....... v4=${n4}  v5=${n5}`);
+    console.log(`  next_action .............. v4=${l.t4.next_action}  v5=${l.t5.next_action}`);
+    console.log(`  C4 (nao corrige controle)  v4=${c4(l.r4)}  v5=${c4(l.r5)}`);
+    console.log(`  C5 (corrige quando ha) ... v4=${c5(l.r4)}  v5=${c5(l.r5)}`);
+    console.log(
+      `  C13 (explicacao em pt) ... v4=${l.r4.C13 === null ? "n/a" : l.r4.C13 ? "passa" : "FALHA"}  v5=${l.r5.C13 === null ? "n/a" : l.r5.C13 ? "passa" : "FALHA"}`,
+    );
+    console.log(
+      `  diferenca pedagogica ..... ${n4 !== n5 ? `QUANTIDADE mudou (${n4} -> ${n5})` : mesmaCorrecao ? "nenhuma (mesma correcao)" : "MESMO numero, correcao diferente"}`,
+    );
+    console.log(`  veredito ................. ${v.rotulo}${v.detalhe ? ` (${v.detalhe})` : ""}`);
+    console.log(`  confianca ................ ${confiancaDe(l.alvo.id)}`);
+    console.log("");
+  }
+
+  const cont = { MELHORA: 0, REGRESSAO: 0, TROCA: 0, equivalencia: 0 };
+  for (const l of linhas) cont[vereditoDe(l).rotulo] += 1;
+  console.log(
+    `comparar-prompt: ${linhas.length}/${matriz.comparacao.falas.length} falas · ${cont.MELHORA} melhora · ${cont.REGRESSAO} regressao · ${cont.TROCA} troca · ${cont.equivalencia} equivalencia · ${ausentes} sem evidencia`,
+  );
+  console.log("O VEREDITO E HUMANO: estes numeros dizem o que mudou, nao se a mudanca vale.");
+  process.exit(ausentes > 0 || linhas.length !== matriz.comparacao.falas.length ? 1 : 0);
+}
+
+// Versao tolerante de carregarCelulas: a comparacao de prompt nao DEPENDE da matriz, mas
+// usa as celulas como corroboracao quando existem. Falhar aqui por matriz ausente seria
+// acoplar dois desenhos que sao independentes.
+function carregarCelulasSeExistir() {
+  try {
+    return carregarCelulas();
+  } catch {
+    return new Map();
+  }
+}
+
+const argv = process.argv;
+if (argv.includes("--self-test")) runSelfTest();
+else if (argv.includes("--matriz")) {
+  if (argv.includes("--assert-completo")) assertCompleto();
+  else if (argv.includes("--assert-invariancia")) assertInvariancia();
+  else if (argv.includes("--assert-diferenca")) assertDiferenca();
+  else if (argv.includes("--assert-teto")) assertTeto();
+  else if (argv.includes("--relatorio")) relatorioMatriz();
+  else {
+    console.log(
+      "uso: grade.mjs --matriz --assert-{completo|invariancia|diferenca|teto} | --relatorio",
+    );
+    process.exit(2);
+  }
+} else if (argv.includes("--comparar-prompt")) compararPrompt();
+else if (argv.includes("--assert-contract")) assertContract();
 else printTable();

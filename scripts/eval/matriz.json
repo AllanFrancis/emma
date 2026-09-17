@@ -1,0 +1,67 @@
+{
+  "descricao": "Subconjunto e eixos da matriz de personalidade (SPEC-20260916-1652). Os niveis SUBSTITUEM o nivel_esperado do dataset: a matriz mede como o mesmo erro e tratado em niveis e tons diferentes, entao o nivel e dimensao de execucao, nao propriedade da fala.",
+  "niveis": [1, 4],
+  "tons": ["tranquila", "direta"],
+  "comparacao": {
+    "descricao": "As 7 falas que FALHARAM com o prompt v4 na SPEC-20260916-1450. Re-rodadas com o v5 nas MESMAS condicoes do v4 (nivel do dataset, tom tranquila) para isolar o efeito do prompt. A evidencia do v4 esta em docs/archive/SPEC-20260916-1450-contrato-do-turno-v2/evidence/openai_gpt-oss-20b/.",
+    "falas": [
+      { "id": "cafe-02", "falha_v4": "omissao", "detalhe": "'I want a coffee' -> a forma correta foi para suggestion_en" },
+      { "id": "cafe-08", "falha_v4": "omissao", "detalhe": "'some' em pergunta deveria ser 'any'" },
+      { "id": "talk-06", "falha_v4": "omissao", "detalhe": "question tag: 'no?' deveria ser 'isn't it?'" },
+      { "id": "talk-10", "falha_v4": "omissao", "detalhe": "falso cognato 'doubt' -> 'question'" },
+      { "id": "hotel-05", "falha_v4": "explicacao_em_ingles", "detalhe": "\"Use 'am' instead of 'have' for age.\"" },
+      { "id": "hotel-07", "falha_v4": "sobre-correcao", "detalhe": "corrigiu 'the breakfast' num contexto em que o artigo e aceitavel, e explicou em ingles" },
+      { "id": "hotel-10", "falha_v4": "explicacao_em_ingles", "detalhe": "\"Use present perfect continuous for an action that started in the past...\" — metalinguagem em ingles para nivel baixo" }
+    ]
+  },
+  "falas": [
+    {
+      "id": "cafe-02",
+      "motivo": "omissao do v4: o modelo pos a forma correta em suggestion_en. 'I want a coffee' num balcao e NOMEADO na via (b) do prompt e ainda assim nao foi corrigido."
+    },
+    {
+      "id": "cafe-04",
+      "motivo": "decalque direto do portugues ('estou com fome'). Erro que nenhum tom deveria deixar passar."
+    },
+    {
+      "id": "cafe-07",
+      "motivo": "CONTROLE. Frase curta que resolve a situacao; o prompt diz explicitamente que isso nao e erro. Mede se o tom direto inventa correcao."
+    },
+    {
+      "id": "hotel-05",
+      "motivo": "o exemplo LITERAL da secao 26 do prompt de desenvolvimento ('I have 25 years'). Tambem foi uma das 3 explicacoes em ingles do v4."
+    },
+    {
+      "id": "hotel-07",
+      "motivo": "CONTROLE e a unica sobre-correcao do v4. Se o tom direto piorar isso, aparece aqui primeiro."
+    },
+    {
+      "id": "hotel-11",
+      "motivo": "falso cognato 'pretend'. Erro que comunica errado sem soar errado — o tipo que o aluno repete."
+    },
+    {
+      "id": "talk-06",
+      "motivo": "omissao do v4: question tag 'no?' em vez de 'isn't it?'."
+    },
+    {
+      "id": "talk-10",
+      "motivo": "omissao do v4 e falso cognato 'doubt', tambem NOMEADO na via (b) do prompt."
+    },
+    {
+      "id": "talk-01",
+      "motivo": "CONTROLE minimo ('Yes.'). Mede se algum tom trata resposta curta como deficiencia."
+    },
+    {
+      "id": "livre-02",
+      "motivo": "CONTROLE emblematico: 'Sorry, my english is very bad'. E a fala em que o 120b corrigiu a MAIUSCULA de 'english' — corrigir grafia de quem expressou vergonha do proprio ingles e o oposto de 'fluencia antes de perfeicao'."
+    },
+    {
+      "id": "livre-05",
+      "motivo": "multiplo com 3 correcoes esperadas. Mede o teto de 3 sob dois tons: se a 'direta' corrigir mais, a personalidade virou pedagogia."
+    },
+    {
+      "id": "livre-09",
+      "motivo": "multiplo e longo. Mede teto e comprimento da resposta em nivel 1 contra nivel 4."
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "id": "hotel-05",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "direta",
+  "nivel": 1,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-16T21:14:48.414Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 1. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: direta e sem rodeios. Cobra a repeticao. Nunca ofende, humilha nem usa palavrao.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "I have 25 years"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-b6f8bbdf-3bfb-4eee-a82d-2c2443ea7655",
+    "object": "chat.completion",
+    "created": 1789593306,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Got it, you’re 25 years old. Are you staying with us for a short visit?\",\"reply_pt\":\"Entendi, você tem 25 anos. Você está hospedando-se conosco por uma visita curta?\",\"instruction_pt\":\"Repita a frase corrigida.\",\"corrections\":[{\"category\":\"grammar\",\"original\":\"I have 25 years\",\"suggested\":\"I am 25 years old\",\"explanation_pt\":\"Para indicar idade usa 'am' e adiciona 'years old'.\"}],\"suggestion_en\":\"I am 25 years old.\",\"suggestion_pt\":\"Eu tenho 25 anos.\",\"words\":[\"I am 25 years old\",\"years old\",\"I am\"],\"focus\":\"Uso do verbo 'am' e expressão 'years old' para indicar idade\",\"next_action\":\"retry\"}",
+          "reasoning": "The student's input: \"I have 25 years\" – likely meaning they have 25 years old. They say \"I have 25 years\" – that is wrong. We need to respond: first interpret: they want to say age. So reply: \"I am 25 years old.\" Ask: \"Is that correct? Are you checking in?\" Provide corrections: The phrase \"I have 25 years\" is wrong. We need to correct.\n\nWe must produce JSON with the required fields: reply_en, reply_pt, instruction_pt, corrections, suggestion_en, suggestion_pt, words, focus, next_action.\n\nWe must follow guidelines:\n\n- We provide at most 3 corrections. Here only one correction needed: \"I have 25 years\" -> \"I am 25 years old\" or \"I'm 25\".\n\nWe should also correct \"I have 25 years\" as wrong. Category: grammar? It's an error of subject-verb agreement? It's a wrong expression of age. Probably grammar. explanation_pt: \"Para indicar idade usa 'am' e adiciona 'years old'.\" original: \"I have 25 years\". suggested: \"I am 25 years old\".\n\nWe might also correct \"I have 25 years\" as a false friend? It's not a false friend. It's grammar.\n\nWe might also mention that \"I have 25 years\" might be used to refer to duration, but not age. So the correction category: grammar or vocabulary? I'd choose grammar because it's a wrong grammatical structure. We'll put category \"grammar\".\n\nWe should also note that the phrase \"I have 25 years\" is not idiomatic. The correction: \"I am 25 years old\".\n\nWe need to provide \"focus\": \"Uso do verbo 'am' para indicar idade\".\n\ninstruction_pt: \"Repita a frase corrigida.\"\n\nnext_action: \"retry\" because they should repeat the corrected phrase.\n\nreply_en: must respond first to meaning: \"You said you are 25 years old.\" Then ask a question. Example: \"Got it! You're 25 years old. Is this your first time staying with us?\" But must end with question. So reply_en: \"Got it, you’re 25 years old. Are you staying with us for a short visit?\" etc. Must end with a question.\n\nreply_pt: translation of reply_en.\n\nsuggestion_en: example phrase: \"I am 25 years old.\" suggestion_pt: \"Eu tenho 25 anos.\"\n\nwords: maybe include \"I am 25 years old\" as a phrase, but words array should be up to 3 expressions in English practiced this turn. We can list \"I am 25 years old\" as an expression. But maybe we also include \"years old\" or \"I am\". But probably the phrase \"I am 25 years old\".\n\nWe must include up to 3. So maybe [\"I am 25 years old\", \"years old\", \"I am\"].\n\nNow the corrections array: one element.\n\nWe must ensure JSON format is valid.\n\nLet's produce final JSON.\n\nCheck that fields: reply_en, reply_pt, instruction_pt, corrections, suggestion_en, suggestion_pt, words, focus, next_action. All present.\n\nMake sure no extra fields.\n\nNow craft.\n\nreply_en: \"Got it, you’re 25 years old. Are you staying with us for a short visit?\" ends with question. Good.\n\nreply_pt: \"Entendi, você tem 25 anos. Você está hospedando-se conosco por uma visita curta?\" But keep same meaning. Could be: \"Entendi, você tem 25 anos. Você ficará aqui por uma visita curta?\" Fine.\n\ninstruction_pt: \"Repita a frase corrigida.\"\n\nnext_action: \"retry\".\n\nfocus: \"Uso do verbo 'am' e expressão 'years old' para indicar idade\".\n\nNow corrections array: only one.\n\nLet's produce JSON."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.191500161,
+      "prompt_tokens": 1539,
+      "prompt_time": 0.08940507,
+      "completion_tokens": 977,
+      "completion_time": 1.098620754,
+      "total_tokens": 2516,
+      "total_time": 1.188025824,
+      "completion_tokens_details": {
+        "reasoning_tokens": 797
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_4f7e7dc26e",
+    "x_groq": {
+      "id": "req_01m2p15fwjez8rgmjnw9jkmr6j",
+      "seed": 1184361397
+    },
+    "service_tier": "on_demand"
+  }
+}

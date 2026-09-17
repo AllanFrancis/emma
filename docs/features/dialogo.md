@@ -12,8 +12,11 @@
 ### Concluídas
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
+- SPEC-20260916-1652 | 2026-09-16 | `e4ecf53` | Eval de personalidade — matriz tom × nível e comparação controlada v4 × v5
 ### Planejadas (future/)
-- SPEC-20260916-1652-eval-personalidade | Eval de personalidade — mesma pedagogia, estilos diferentes | Compartilhado com `personalidade`; ataca por prompt as 4 omissões e as 3 explicações em inglês
+- SPEC-20260916-2048-semantica-next-action | Semântica de next_action | Correção emitida sem pedir aplicação não é medida por nenhuma checagem
+- SPEC-20260916-2048-regra-fala-transcrita | Regra da fala transcrita | Instrução no prompt não impediu a violação da DEC-20260916-0312
+- SPEC-20260916-2048-metodologia-de-eval | Metodologia de eval | Sem controle de parâmetros, diferença isolada não é atribuível ao prompt
 - SPEC-20260916-1652-eval-conversa-multiturno | Eval de conversa multiturno | Mede coerência longitudinal, que turno isolado não mede
 - SPEC-20260916-1652-motor-de-dialogo | Motor de diálogo — server function, strict JSON e fallback | Tira a chave do cliente e garante que um turno nunca morre na tela
 - SPEC-20260916-1652-conversa-e-missoes | Conversa e missões — a tela que é o produto | Traz o catálogo de missões de volta ao domínio
@@ -74,7 +77,38 @@ têm um padrão único: em todas, o modelo pôs a forma correta em `suggestion_e
 "I want a coffee" num balcão e o falso cognato "doubt". E 3 das 33 `explanation_pt` saíram em
 inglês (C13 em 88%). Ambos se atacam por prompt.
 
+### Delta de estado (SPEC-20260916-1652, 2026-09-16 20:52)
+
+**Prompt v5 MANTIDO** por decisão do usuário. Comparação controlada nas 7 falas que falharam com o
+v4, em condição idêntica (nível do dataset, tom tranquila, mesmo modelo): **5 melhora · 2
+equivalência · 0 regressão confirmada**.
+
+- **C13 é o ganho mais consistente**: das 3 explicações em inglês, 2 viraram português de forma
+  verificável (`hotel-05`, `hotel-10`) e a 3ª virou n/a por não haver correção. Na matriz, C13 = 97%
+  contra 88% do v4.
+- **C5 melhorou parcialmente**: das 4 omissões, o v5 consertou 2 (`cafe-08` "some"→"any", `talk-06`
+  "no?"→"isn't it?") e manteve 2 (`cafe-02`, `talk-10`). Nas que persistem, a forma correta continua
+  indo para `suggestion_en` — o padrão que a regra de precedência pretendia eliminar.
+- **C4 sem regressão confirmada**: das 7, só `hotel-07` é controle; o v4 sobre-corrigia e o v5 não
+  corrigiu. A queda de C4 para 69% na matriz é COMPOSIÇÃO DE AMOSTRA, não regressão: 4 das 5 falhas
+  são `hotel-07`, que pesa 25% dos controles na matriz contra 6% no dataset de 45, e o v4 falhava a
+  mesma fala.
+
+Ressalva registrada: para `hotel-07` a matriz (4/4 células sobre-corrigiram) CONTRADIZ a comparação
+controlada (não corrigiu). A discordância entre desenhos é evidência de variância de amostragem e
+torna esse veredito frágil.
+
+Primeira `json_validate_failed` do `gpt-oss-20b`, em `talk-06`: JSON malformado (string de `focus`
+sem fechar) somado a `words` com 4 itens violando `maxItems: 3`. A SPEC-20260916-0109 registrou 2
+no 120b e ZERO no 20b em 45 chamadas; agora 1 em ~57 do v5. Recuperada, e contabilizada como evento
+de confiabilidade sem invalidar a execução.
+
+Lacuna de medição aberta: `hotel-10` mudou `next_action` de `retry` para `reply` mantendo a
+correção. Nenhuma das 13 checagens mede isso — C12 só olha casos de controle. Vai para a
+SPEC-20260916-2048-semantica-next-action.
+
 ## Decisões arquiteturais ativas
+- DEC-20260916-2052-prompt-v5 [ativa] (SPEC-20260916-1652) — prompt v5 mantido: precedência da via (b) sobre a (c) e `explanation_pt` amarrada ao português. Base: 5 melhoras, 0 regressões em comparação controlada nas 7 falas que falhavam no v4.
 - DEC-20260916-0310-modelo-dialogo [ativa] (SPEC-20260916-0109) — usar `openai/gpt-oss-20b` na Fase 1; prioriza tato e confiabilidade sobre a maior taxa de correção do 120b.
 - DEC-20260916-0311-fallback-json [ativa] (SPEC-20260916-0109) — falha `json_validate_failed` recebe retry e depois cai em `scriptedTurn()`; um turno nunca morre na interface.
 - DEC-20260916-0312-fala-transcrita [ativa] (SPEC-20260916-0109) — o prompt declara que a entrada é fala transcrita, impedindo correções de maiúsculas e pontuação inexistentes na fala.
@@ -95,4 +129,7 @@ inglês (C13 em 88%). Ambos se atacam por prompt.
 - SPEC-20260916-0109 | limites do Groq são compartilhados pela organização (2026-09-16 02:09) — paralelizar chamadas ou alternar chaves da mesma conta não amplia a cota. (citado por: SPEC-20260916-1450)
 - SPEC-20260916-1450 | o teto do tier gratuito é de TOKENS por minuto, não de requisições (2026-09-16 16:13) — a rodada morre com `remainingRequests` em 995 e `remainingTokens` em 1207. A ~1065 tokens por turno a janela permite 1 ou 2 turnos; o `retry-after` do Groq vem em 2-5s, curto demais para refilar. Use backoff com espera mínima de 20s e pause pelo header `x-ratelimit-remaining-tokens`.
 - SPEC-20260916-1450 | rate limit não é falha de contrato (2026-09-16 16:30) — um gate que conta qualquer entrada de `_failures/` como falha de contrato trava o critério para sempre no tier gratuito. Classifique por `erro.error` antes de reprovar.
+- SPEC-20260916-1652 | `strict: true` falha também no `gpt-oss-20b` (2026-09-16 20:28) — primeira `json_validate_failed` do 20b, com JSON malformado E `words` acima do `maxItems` na mesma resposta. Confirma a DEC-20260916-0311: retry e fallback não são precaução, são requisito.
+- SPEC-20260916-1652 | `fetch` sem timeout trava a rodada inteira (2026-09-16 20:27) — `livre-09-n4-direta` ficou ~15 min pendurada com orçamento de tokens saudável. Requisição sem timeout é indistinguível de rodada lenta.
+- SPEC-20260916-1652 | headers de rate limit por minuto não expõem a janela longa (2026-09-16 18:14) — veio 429 com `retry-after` de 677s enquanto `remainingRequests: 950` e `remainingTokens: 5952` pareciam saudáveis. O ciclo medido foi 429 (~680s) → 429 (~130-170s) → sucesso, ~12 min por chamada.
 - SPEC-20260916-1450 | detector de português genérico falha em explicação de correção (2026-09-16 16:36) — explicação é curta e cita palavras inglesas entre aspas ("Use 'on' depois de 'depends'."), então marcadores de conversa dão falso positivo. Calibre contra as evidências reais; minha primeira medição acusou 11 de 33 quando o número era 3.
