@@ -73,6 +73,45 @@ Isso é consistente com DEC-20260916-1612: o modelo PROPÕE `next_action`, quem 
 
 O núcleo pedagógico já está arquivado (SPEC-20260916-1652-nucleo-pedagogico); esta SPEC define a regra, não a implementa lá — o escopo do `main.md` é explícito: "Implementar o núcleo pedagógico (SPEC própria) — aqui se define a regra que ele vai aplicar". A C15 é o instrumento que prova a regra sobre evidência.
 
+## Divergência conhecida e NÃO resolvida — o núcleo no fechamento de missão
+
+Registrada por decisão do usuário em 2026-09-17, depois de a tabela já estar aprovada. **Não é defeito de nenhum dos dois lados, e o comportamento atual do núcleo permanece válido.**
+
+`src/domain/next-action.ts`, na `decidirNextAction`, condiciona a cobrança de aplicação:
+
+```js
+if (temCorrecao && transition !== "complete") {
+```
+
+com justificativa escrita no próprio código — "cobrar repetição depois de o objetivo ter sido cumprido transformaria a vitória do aluno em mais uma tarefa" — e teste nomeado em `next-action.test.ts`: `"mas fechar a missao vence a cobranca de repeticao"`.
+
+Isso é uma política pedagógica **anterior, explícita, implementada e testada**, vinda da SPEC-20260916-1652-nucleo-pedagogico (arquivada). A regra estrita desta tabela e essa política discordam em uma única combinação: `complete_mission` + correção. Para `continue_mission` não há divergência — o núcleo já força `retry` em toda transição que não seja `complete`.
+
+### As duas leituras coexistem de propósito
+
+| Camada | O que responde |
+|---|---|
+| C15 (esta SPEC) | "Sob a regra estrita, quantos turnos com correção não pedem aplicação?" |
+| Núcleo (arquivado) | "Uma missão concluída pode vencer a necessidade de repetição." |
+
+**Estatuto da C15 até a reconciliação: checagem de observação e medição, não regra normativa.** Ela não reprova o núcleo e não bloqueia CI. Está escrito no comentário da própria checagem em `grade.mjs`, para quem ler o código não concluir que o núcleo está errado.
+
+Nada foi alterado para acomodar a divergência: a C15 continua estrita e `decidirNextAction` continua com a linha e o teste intactos. Decisão do usuário: "A reconciliação acontecerá na SPEC do contrato de correções."
+
+### A evolução que resolve — correção bloqueante × informativa
+
+Ideia conceitual registrada, **sem definir nome de campo e sem tocar `turn-schema.json` nesta SPEC**:
+
+- correção **bloqueante** → o aluno precisa aplicar antes de avançar ou concluir → `retry`;
+- correção **informativa** → pode acompanhar o fechamento da missão sem exigir nova tentativa → `complete_mission` segue possível.
+
+Duas ressalvas que o usuário fez questão de fixar:
+
+1. **Não assumir que qualquer correção em `complete_mission` é automaticamente informativa.** A classificação precisa de regra objetiva, não de conveniência.
+2. A SPEC futura tem de resolver **em conjunto**: correção bloqueante × informativa, comportamento de `next_action`, a exceção de `complete_mission`, o schema do turno, o núcleo, a C15 e a compatibilidade com as evidências históricas. Resolver em pedaços recria a divergência em outro lugar.
+
+**Dependência explícita: a C15 não vira gate antes dessa SPEC.** Ver `SPEC-20260917-1259-contrato-de-correcoes`, registrada em `docs/future/` e no DAG do programa `emma` como dependente desta SPEC.
+
 ## Alternativa recusada nesta revisão
 
 **Permitir correção não bloqueante em `continue_mission` / `complete_mission` por dentro da C15.** Recusada pelo usuário: a exceção pode ser desejável no futuro, mas tem de entrar como semântica NOVA e explícita no contrato do turno — distinguindo correção bloqueante de informativa — e não como afrouxamento implícito da checagem. Registrar aqui para que a recusa não se perca e a ideia não volte disfarçada.

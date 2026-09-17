@@ -2,12 +2,12 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 12:46
+**Última atualização:** 2026-09-17 13:03
 **Onde tô:** os 4 critérios evidenciados; pronto para fechar
 **Próximo passo:** `close` (decisão humana) e merge de `feature/semantica-next-action`
 **Última decisão:** `next_action` tem fonte de verdade no núcleo; C15 sem exceção
-**Bloqueio atual:** a regra aprovada contradiz o núcleo ARQUIVADO — `decidirNextAction` abre exceção para `complete_mission` com correção (`transition !== "complete"`), com teste nomeado. Decisão do usuário entre 3 saídas; ver `[blocker]` de 12:46
-**Se retomar, ler:** o `[blocker]` de 12:46, depois `tabela-de-coerencia.md` e `evidence/levantamento-taxa.md`
+**Bloqueio atual:** nenhum. A divergência com o núcleo no fechamento de missão é CONHECIDA e não resolvida de propósito — a C15 tem estatuto de observação, a exceção do núcleo permanece válida, e a reconciliação é da SPEC-20260917-1259-contrato-de-correcoes. Ver `[unblock]` de 13:03
+**Se retomar, ler:** o `[unblock]` de 13:03, depois `tabela-de-coerencia.md` e `evidence/levantamento-taxa.md`
 
 ### Fases
 | # | Descrição | Status | Atualizado |
@@ -18,7 +18,9 @@
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
-- fato: 38 de 61 turnos com correção (62,3%) não pediam aplicação, todos `reply`. Reproduzível por `grade.mjs --levantamento-aplicacao`. Universo mensurável 107; 90 turnos pré-contrato-v2 ficam fora por ausência do campo.
+- fato: OFICIAL — 38 de 61 turnos com correção (62,3%) não pediam aplicação, todos `reply`. Reproduzível por `grade.mjs --levantamento-aplicacao`. Universo mensurável 107; 90 turnos pré-contrato-v2 ficam fora por ausência do campo. Os números 64/41 (64,1%), que incluíam `conversas/`, estão SUBSTITUÍDOS.
+- fato: o núcleo pedagógico JÁ EXISTE em `src/domain/` (16 arquivos) — `decidirIntent`, `revisarTurno`, `decidirNextAction`, políticas de nível/suporte/correção/missão. `ARCHITECTURE.md` afirmava que `src/` era scaffold puro; defasagem anterior a esta rodada.
+- fato: `decidirNextAction` condiciona a cobrança de aplicação a `transition !== "complete"`, com teste nomeado. Divergência CONHECIDA com a regra estrita da C15, limitada a `complete_mission`. Não é bug e permanece válida.
 - fato: `hotel-10` está gravado 2×, mesma fala e mesma correção — `retry` no contrato-do-turno-v2, `reply` no prompt-v5. O prompt regrediu o caso e nada media.
 - fato: `continue_mission` nunca ocorre em 107 turnos; `complete_mission` ocorre 1× e sem correção.
 - fato: C15 no array `CHECKS`, independe de `record` (ao contrário de C12). Self-test 33 casos de turno / 15 checagens / 0 falha. `bun test` 76 pass, lint do projeto 0 erro, typecheck limpo.
@@ -43,7 +45,7 @@
 - `tabela-de-coerencia.md`, `evidence/levantamento-taxa.md` — novos.
 
 ### Onde parei
-Pronto para `close`. Pendente por decisão humana, não por trabalho.
+Fechando. Implementação COMPLETA; a divergência encontrada é decisão de domínio de outro escopo, e virou SPEC-20260917-1259-contrato-de-correcoes em `docs/future/`, dependente desta no DAG.
 
 Diferido de propósito para o `### Delta de estado` do fechamento: a linha do mapa de arquivos de `docs/features/dialogo.md` ainda diz "13 checagens" e deveria dizer 15. Não editada agora porque `dialogo.md` está em colisão de claim com `motor-de-dialogo` e `docs/rules/team.md` proíbe editar a prosa de estado concorrentemente. As outras 3 ocorrências naquele arquivo são históricas e não se tocam.
 
@@ -301,3 +303,37 @@ Não marquei nem desmarquei critério por conta disso. Os 4 seguem evidenciados:
 
 Recomendação: **3 agora, 2 depois.** A C15 não é gate de CI ainda, e 0 ocorrências em 107 turnos significa que a divergência não tem custo imediato; deixá-la visível é melhor que escondê-la. E quando o motor começar a fechar missões de verdade, a taxa dirá se a exceção do núcleo é frequente o bastante para merecer a semântica nova do caminho 2. O caminho 1 é o único que eu não recomendaria sem mais evidência, porque descarta uma decisão pedagógica que foi tomada com justificativa e teste.
 ⎿ commit 912a809
+
+## 2026-09-17 13:03 — [unblock] Divergencia com o nucleo e conhecida e nao resolvida de proposito; a C15 e observacao e a reconciliacao tem SPEC propria
+
+O `[blocker]` de 12:46 está resolvido — não por reconciliação, mas por decisão do usuário de que a divergência é **conhecida e não resolvida de propósito**, e que ela pertence a outro escopo.
+
+Citação do usuário, 2026-09-17: "Não quero deixar um `[blocker]` que dê a impressão de que a implementação da C15 está incompleta. A implementação está completa; o que apareceu foi uma decisão de domínio mais profunda que pertence a outro escopo."
+
+### O que foi decidido: saída 3 agora, saída 2 depois
+
+- **A C15 fica estrita**, como implementada: `corrections.length > 0` ⇒ só `retry` é coerente.
+- **Mas o estatuto dela é de OBSERVAÇÃO/MEDIÇÃO**, não de norma. Ela não reprova o núcleo e não bloqueia CI. Está escrito no comentário da checagem em `grade.mjs`, e o `--levantamento-aplicacao` imprime um aviso explícito quando encontrar `complete_mission` com correção, dizendo que é divergência conhecida e não defeito.
+- **A exceção do núcleo permanece VÁLIDA.** Não é bug. `decidirNextAction` e o teste `"mas fechar a missao vence a cobranca de repeticao"` ficaram intactos, por instrução expressa: "Preserve tanto a linha quanto o teste existente de fechamento da missão. Também não ajuste a C15 para acomodá-los."
+- **A reconciliação tem SPEC própria:** SPEC-20260917-1259-contrato-de-correcoes, criada em `docs/future/` e registrada no DAG do programa `emma` como dependente desta. Porte G, porque resolve seis superfícies em conjunto — schema do turno, núcleo, C15, prompt, exceção de `complete_mission` e compatibilidade com as 107 evidências históricas.
+
+### Duas semânticas coexistindo, declaradamente
+
+| Camada | O que responde |
+|---|---|
+| C15 | "Sob a regra estrita, quantos turnos com correção não pedem aplicação?" |
+| Núcleo | "Uma missão concluída pode vencer a necessidade de repetição." |
+
+Isso não está escondido em nenhum dos dois lugares. É o estado desenhado até a SPEC do contrato de correções.
+
+### Duas ressalvas que o usuário fixou para a SPEC futura
+
+1. **Não assumir que qualquer correção em `complete_mission` é automaticamente informativa.** A classificação precisa de regra objetiva.
+2. **Dependência explícita antes de a C15 virar gate:** a SPEC futura tem de resolver conjuntamente correção bloqueante × informativa, comportamento de `next_action`, a exceção de `complete_mission`, o schema do turno, o núcleo, a C15 e a compatibilidade com a evidência histórica.
+
+### Levantamento oficial, confirmado
+
+61 turnos mensuráveis com correção, 38 sem pedido de aplicação, **62,3%**, zero chamada nova ao modelo. Os números anteriores que incluíam `conversas/` (64 e 41, 64,1%) estão SUBSTITUÍDOS pela medição reproduzível — `node scripts/eval/grade.mjs --levantamento-aplicacao`. Registrado em `evidence/levantamento-taxa.md`.
+
+Esta SPEC está pronta para fechar nesses termos, com a divergência registrada como conhecida e não resolvida.
+⎿ commit 3ed072c+dirty · 3 files changed, 94 insertions(+), 8 deletions(-)

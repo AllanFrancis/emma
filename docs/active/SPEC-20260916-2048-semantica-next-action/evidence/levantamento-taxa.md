@@ -50,16 +50,27 @@ Destes, **115 não têm `next_action` legível**: são as evidências da SPEC-20
 node scripts/eval/grade.mjs --levantamento-aplicacao
 ```
 
+### O número oficial, e o que ele substitui
+
+Por decisão do usuário em 2026-09-17, o levantamento oficial desta SPEC é:
+
+- **61 turnos mensuráveis com correção** pelo harness
+- **38 com correção e sem pedido de aplicação**
+- **62,3%**
+- **zero chamada nova ao modelo**
+
+Os números que eu havia reportado antes — 64 turnos com correção e 41 sem aplicação, 64,1% — **estão SUBSTITUÍDOS**. Eles vinham de um script exploratório que incluía os 10 turnos de `conversas/`, e esse script foi descartado. O que vale é a medição reproduzível por comando.
+
 ### Duas convenções, dois números, nenhum errado
 
 O harness cobre **rodadas por turno** e exclui `conversas/`, porque conversa é um arquivo com vários turnos e tem caminho próprio (`--conversas`). Essa é a convenção que o levantamento de grafia da SPEC-20260916-2048-regra-fala-transcrita já usava, e mantê-la faz os dois levantamentos comparáveis.
 
-| Convenção | com correção | não pedem aplicação | taxa |
-|---|---|---|---|
-| Rodadas por turno (harness, oficial) | 61 | 38 | **62,3%** |
-| Incluindo os 10 turnos de `conversas/` | 64 | 41 | 64,1% |
+| Convenção | com correção | não pedem aplicação | taxa | Estatuto |
+|---|---|---|---|---|
+| Rodadas por turno (harness) | 61 | 38 | **62,3%** | **OFICIAL** |
+| Incluindo os 10 turnos de `conversas/` | 64 | 41 | 64,1% | substituído |
 
-As 4 conversas contribuem 3 turnos com correção, todos `reply`. A conclusão não muda em nenhuma das duas leituras: a taxa é alta e instrução de prompt não sustenta a invariante. O número citado em decisão é o de 62,3%, porque é o que um comando reproduz.
+As 4 conversas contribuem 3 turnos com correção, todos `reply`. A conclusão não muda em nenhuma das duas leituras: a taxa é alta e instrução de prompt não sustenta a invariante. A tabela fica registrada para que a diferença entre os dois números não pareça erro de medição, mas o número oficial é 62,3%, porque é o que um comando reproduz.
 
 O harness também lê 197 turnos onde o script exploratório leu 222: a diferença são os 25 turnos de `_baseline-prompt-v1` e `_baseline-prompt-v2`, que `collectEvidenceTargets` ignora por convenção de prefixo `_`. Todos eram anteriores ao contrato v2 e não tinham `next_action`, então **o universo mensurável é idêntico nas duas contagens: 107 turnos.**
 
