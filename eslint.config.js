@@ -19,6 +19,9 @@ export default tseslint.config(
       ".vinxi",
       ".scratch",
       ".tanstack",
+      // Worktrees de SPECs paralelas: cada um é uma cópia completa do repo. Sem isto o
+      // eslint da raiz varre as cópias e reporta erro de código que não é desta árvore.
+      ".worktrees",
       "src/routeTree.gen.ts",
       "src/domain/turn-contract.generated.ts",
     ],
