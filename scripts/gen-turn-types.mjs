@@ -107,9 +107,16 @@ function gerar() {
 
 const conteudo = gerar();
 
+// O `--check` compara CONTEUDO, nao codificacao de fim de linha. O gerador escreve LF e o
+// git materializa CRLF no checkout (core.autocrlf), entao comparar bytes crus reprovaria um
+// arquivo perfeitamente em dia — foi o que aconteceu no primeiro merge em main.
+function normalizarFimDeLinha(texto) {
+  return texto.replace(/\r\n/g, "\n");
+}
+
 if (process.argv.includes("--check")) {
   const atual = fs.existsSync(DESTINO) ? fs.readFileSync(DESTINO, "utf8") : "";
-  if (atual !== conteudo) {
+  if (normalizarFimDeLinha(atual) !== normalizarFimDeLinha(conteudo)) {
     console.error(
       "turn-contract.generated.ts esta DESATUALIZADO em relacao ao turn-schema.json.\n" +
         "rode: bun run gen:turn-types",
