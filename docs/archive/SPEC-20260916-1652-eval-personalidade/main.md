@@ -1,13 +1,13 @@
 # SPEC-20260916-1652: Eval de personalidade — mesma pedagogia, estilos diferentes
 
-**Status:** active
+**Status:** done
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
 **Ativada:** 2026-09-16 17:05
-**Concluída:** —
+**Concluída:** 2026-09-16 20:56
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `c5cddbb`
 **Keywords:** personalidade, eval, matriz, tom, invariancia
 **Features:** dialogo, personalidade
 **Branch:** feature/eval-personalidade
