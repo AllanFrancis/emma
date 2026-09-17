@@ -3767,7 +3767,13 @@ function cmdSessionClose() {
   const codeChanged = changed.some(
     (p) => !p.startsWith("docs/") && !p.startsWith(".scratch/") && !p.startsWith(".claude/"),
   );
-  const journalChanged = act.some((s) => changed.includes(`docs/active/${s.id}/journal.md`));
+  // O git COLAPSA diretorio novo numa entrada so (`?? docs/active/SPEC-x/`), entao numa SPEC
+  // recem-ativada o journal.md nunca aparece como caminho proprio. Comparar so caminho exato
+  // reprovava toda PRIMEIRA sessao de SPEC — justamente a que mais mexe em codigo.
+  const journalChanged = act.some((s) => {
+    const alvo = `docs/active/${s.id}/journal.md`;
+    return changed.some((p) => p === alvo || (p.endsWith("/") && alvo.startsWith(p)));
+  });
   if (codeChanged && !journalChanged) {
     out(
       JSON.stringify({
