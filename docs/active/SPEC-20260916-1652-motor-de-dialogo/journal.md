@@ -2,33 +2,53 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 13:10
-**Onde tô:** início — nada feito ainda
-**Próximo passo:** <primeiro passo concreto>
-**Última decisão:** —
+**Última atualização:** 2026-09-17 15:48
+**Onde tô:** 9 critérios evidenciados; pronto para fechar
+**Próximo passo:** `close` (decisão humana) e merge de `feature/motor-de-dialogo`
+**Última decisão:** validador do produto lê o schema, sem reusar o do harness
 **Bloqueio atual:** nenhum
-**Se retomar, ler:** main.md desta SPEC
+**Se retomar, ler:** `tasks.md`, depois `src/dialogo/motor.ts`
 
 ### Fases
 | # | Descrição | Status | Atualizado |
 |---|---|---|---|
-| 1 | <fase> | pendente | 2026-09-17 12:07 |
+| 1 | Prompt puro do Intent e catálogo de missões (tasks 1.0, 3.0) | concluída | 2026-09-17 15:20 |
+| 2 | Adapter isolado, motor com fallback, janela como orçamento (2.0, 5.0, 7.0) | concluída | 2026-09-17 15:35 |
+| 3 | Server function e validador (4.0) | concluída | 2026-09-17 15:38 |
+| 4 | Invariantes por teste (6.0) | concluída | 2026-09-17 15:46 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
-- fato:
-- inferência:
-- dúvida:
+- fato: o núcleo pedagógico JÁ EXISTIA em `src/domain/` com 16 arquivos. `decidirIntent`, `revisarTurno` e `decidirNextAction` são insumo; nada disso foi reimplementado.
+- fato: `src/start.ts` já instalava `createCsrfMiddleware` com filtro `handlerType === "serverFn"`. A server function herda; não foi preciso implementar.
+- fato: `response_format.type = json_schema` e `json_schema.strict = true` verificados NO CORPO do pedido, com `fetch` interceptado. O `strict` vem do próprio `turn-schema.json`.
+- fato: o bundle do cliente não menciona `GROQ_API_KEY`, `api.groq.com` nem padrão `gsk_*`. Verificado por teste de inspeção E por grep direto em `dist/client`.
+- fato: `bun test` 150 pass / 0 fail; `tsc --noEmit` limpo; `bun run lint` 0 erro (6 avisos pré-existentes do scaffold).
+- fato: o teste do núcleo sobrescrevendo o modelo passa — proposta `reply` com correção emitida sai como `retry`.
+- fato: NENHUMA chamada real ao Groq nesta sessão; `GROQ_API_KEY` ausente no ambiente.
+- inferência: os defaults de teto de histórico (1500 tokens) e de retry (6) são plausíveis por espelharem o harness, mas não foram calibrados contra tráfego real.
+- dúvida em aberto: latência real por turno e comportamento real do teto de tokens por minuto seguem NÃO MEDIDOS. Os dois são risco declarado no contrato e só o smoke test com chave real resolve.
 
 ### Respostas-chave do usuário
+- Porte G: "só tasks + modo autônomo". "Não deixe as tasks ampliarem o contrato existente."
+- "a proteção da chave/API e demais fronteiras de confiança devem ser verificadas por testes/inspeção, não por gate humano adicional."
+- "não recrie `decidirIntent`, `revisarTurno` ou `decidirNextAction`. As tasks precisam partir do que já existe e focar na integração."
+- "trate a janela de histórico como orçamento" e "não antecipe nenhuma mudança da futura `contrato-de-correcoes`."
+- Uso da chave: "use a chave somente para os testes estritamente necessários. Evite rodadas repetidas que não acrescentem evidência nova."
 
 ### Tentativas que falharam
+- `tsconfig` tem `exactOptionalPropertyTypes` e `noPropertyAccessFromIndexSignature`, e o adapter reprovou duas vezes: `env.GROQ_API_KEY` precisa ser `env["GROQ_API_KEY"]`, e campo opcional NÃO aceita `undefined` explícito — resolvido com spread condicional `...(x === undefined ? {} : { k: x })`.
 
 ### Arquivos tocados
+- `src/dialogo/` — `prompt.ts`, `missoes.ts`, `adapter.ts`, `janela.ts`, `motor.ts`, `validador.ts`, `turno.server.ts`, mais 5 arquivos de teste
+- `docs/ARCHITECTURE.md` — `src/domain/` e `turn-contract.generated.ts` no mapa; seção de fronteira reescrita
+- `docs/features/dialogo.md` — R.7, mapa de arquivos e a contagem 13 → 15 que a `semantica-next-action` deixou pendente
 
 ### Onde parei
+Pronto para `close`. A tela de conversa é de `conversa-e-missoes`, então a server function ainda não tem consumidor de interface — por desenho, não por falta.
 
 ### Sessões (máx 5 linhas + 1 agregada)
+- 2026-09-17 12:07–15:48 — ativação, decisão de porte G, tasks.md a partir do núcleo existente, as 7 tasks implementadas com 68 testes novos, 9 critérios evidenciados.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -137,3 +157,52 @@ A janela de histórico aqui é ORÇAMENTO em tokens, medido e não estimado. O q
 
 Instrução do usuário: "Atualize apenas o necessário para que ele deixe de afirmar incorretamente que `src/` é apenas scaffold." Feito em três pontos: duas linhas novas no mapa região→feature (`src/domain/` como `pedagogia`, e `turn-contract.generated.ts` como `dialogo`), e a seção "Fronteira ainda não existente" virou "Fronteira já existente, e a que falta", dizendo o que existe e o que ainda não. Nenhuma outra linha tocada — sem refatoração documental ampla.
 ⎿ commit df0a586+dirty · 1 file changed, 10 insertions(+), 3 deletions(-)
+
+## 2026-09-17 15:48 — [conclusão] Caminho real do turno existe: Intent entra, turno validado sai, chave nunca sai do servidor
+
+O caminho real do turno existe: `PedagogicalIntent` entra, turno validado sai, e a chave de API nunca sai do servidor.
+
+### O que foi entregue, pelas sete tasks
+
+**Prompt puro (1.0).** `construirPrompt(intent)` sem rede e sem disco, derivado do v5 do harness de eval — a versão medida em 45 falas, matriz de personalidade e comparação controlada. Não é texto novo. A diferença que importa: onde a eval escreve "no maximo 3 pontos de correcao" como literal, aqui vem `intent.maxCorrections`, que a política de nível do núcleo já resolveu. Toda afirmação de política no prompt sai de um campo do Intent.
+
+**Adapter isolado (2.0).** Nenhum tipo do núcleo cruza a fronteira: o adapter recebe prompt, mensagens e schema, e devolve texto ou erro tipado. Ele não sabe o que é um Intent, e um teste estático garante que não importa de `../domain`. Groq pelo endpoint compatível com OpenAI via `fetch`, com `response_format: json_schema` e `strict: true` — verificado NO CORPO do pedido, não afirmado.
+
+**Catálogo de missões (3.0).** Café, hotel e puxar conversa, quatro etapas cada, copiadas do protótipo. O `openingEn` de cada etapa é o roteiro de fallback da DEC-20260916-0311, e um teste garante que nenhuma etapa fica sem ele — etapa sem `openingEn` seria um ponto do percurso onde o turno morreria na tela.
+
+**Server function (4.0).** Único ponto que fala com o provedor. Pipeline: `decidirIntent` → prompt → adapter → `JSON.parse` → valida schema → valida evidência → `revisarTurno`. Parse nunca por fatiamento de texto ou regex, que era como o protótipo montava o turno.
+
+**Fallback (5.0).** Retry só em `json_validate_failed`, que a evidência mostra ser recuperável; rate limit e falha irrecuperável não melhoram com insistência dentro do mesmo turno. Esgotado, o turno vem do `openingEn` da etapa ATUAL, entrando no ponto certo do percurso.
+
+**Invariantes por teste (6.0).** Duas checagens mecânicas que falham a suíte: nenhum arquivo de `src/domain/` importa rede, adapter ou o nome da variável de ambiente; e o bundle do cliente não menciona `GROQ_API_KEY`, não carrega `api.groq.com` e não contém nada com forma de chave da Groq. O teste CONSTRÓI o bundle quando falta, então não depende de ninguém lembrar de rodar build antes.
+
+**Janela como orçamento (7.0).** Corte por custo em tokens, mantendo turno inteiro. O número MEDIDO vem do `usage` do provedor; a estimativa só decide o corte antes da chamada.
+
+### Duas coisas que o repositório já resolvia, e eu não refiz
+
+`src/start.ts` já instala `createCsrfMiddleware` com filtro `handlerType === "serverFn"` — a proteção foi re-adicionada de propósito quando o arquivo passou a existir, e esta server function herda. E `revisarTurno` já devolve `nextAction` decidido, então o motor não escolhe, o que satisfaz de graça a invariante "NUNCA o motor toma decisão pedagógica".
+
+### O adapter injetado é o que torna o caminho de falha testável
+
+Todos os 19 testes de motor rodam sem rede e sem chave, inclusive os de falha. Um deles percorre as cinco formas de falha e afirma que um turno chega em todas. Sem injeção, esse caminho só seria exercitado em produção — que é exatamente quando não se pode falhar.
+
+### Fronteira preservada com a retencao-de-contexto
+
+A janela corta por CUSTO, e há teste provando isso: histórico repetitivo e histórico variado do mesmo tamanho cortam no mesmo ponto. Nenhuma heurística de "dado já fornecido", nenhuma deduplicação de pergunta, nenhuma sumarização que decida o que preservar. Isso é política de retenção e é da SPEC-20260916-2257.
+
+### Uma decisão de fronteira que vale registro
+
+O validador do produto NÃO reusa `scripts/eval/turn-validator.mjs`. Aquele existe para graduar evidência offline e vive no harness; acoplar o caminho de request do produto a `scripts/` cruzaria a fronteira que o ARCHITECTURE mantém. Duas implementações lendo o MESMO schema não são dual-write do contrato — o contrato continua num só arquivo. Duas cópias do schema seriam.
+
+### Fio solto recolhido
+
+A `semantica-next-action` deixou a linha do mapa de arquivos de `docs/features/dialogo.md` dizendo "13 checagens", diferida para o delta de fechamento por causa da colisão de claim, e fechou antes de aplicá-la. Com aquela SPEC arquivada a colisão terminou, e esta SPEC é escritora única de `dialogo` — a contagem foi corrigida para 15 aqui.
+
+### O que NÃO foi feito, e é honesto dizer
+
+**Nenhuma chamada real ao Groq.** `GROQ_API_KEY` não está no ambiente desta sessão. Todos os ramos do adapter estão cobertos por teste com `fetch` interceptado, mas o smoke test contra a API real fica pendente. Isso não afeta nenhum critério de aceite — os nove são verificáveis sem rede —, mas latência real por turno e comportamento real do teto de tokens por minuto continuam não medidos, e os dois estão declarados como risco no contrato.
+
+### Verificação
+
+`bun test` 150 pass / 0 fail. `bun x tsc --noEmit` limpo. `bun run lint` 0 erro, com os 6 avisos pré-existentes do scaffold. Invariante da chave confirmada por dois caminhos independentes: o teste de inspeção e um grep direto em `dist/client`.
+⎿ commit ad3d4a6+dirty · 2 files changed, 13 insertions(+), 10 deletions(-)

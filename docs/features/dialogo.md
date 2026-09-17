@@ -5,7 +5,9 @@
   - scripts/eval/turn-schema.json — o contrato do turno (v2)
   - scripts/eval/turn-validator.mjs — validação de schema e de evidência citada
   - scripts/eval/run.mjs — prompt de sistema e runner contra o Groq
-  - scripts/eval/grade.mjs — as 13 checagens mecânicas de qualidade do turno
+  - scripts/eval/grade.mjs — as 15 checagens mecânicas de qualidade do turno, mais as 5 longitudinais
+  - src/dialogo/ — o motor: prompt puro do Intent, adapter de provedor, janela de histórico como orçamento, validador e a server function
+  - src/dialogo/missoes.ts — catálogo de missões; `openingEn` por etapa é o roteiro de fallback (DEC-20260916-0311)
 **Resumo:** Motor de conversa da Emma — system prompt, contrato JSON do turno e catálogo de missões.
 
 ## Specs desta feature
@@ -13,6 +15,7 @@
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
 - SPEC-20260916-1652 | 2026-09-16 | `e4ecf53` | Eval de personalidade — matriz tom × nível e comparação controlada v4 × v5
+- SPEC-20260916-1652 | 2026-09-17 | `pendente` | Motor de diálogo — server function, prompt puro do Intent, adapter Groq isolado e fallback no roteiro da missão
 - SPEC-20260916-1652-eval-conversa-multiturno | 2026-09-16 | `pendente` | Eval de conversa multiturno — coerência longitudinal e avanço de missão
 - SPEC-20260916-2048-regra-fala-transcrita | 2026-09-16 | `pendente` | Regra da fala transcrita — C14 torna a DEC-20260916-0312 verificável
 ### Planejadas (future/)
