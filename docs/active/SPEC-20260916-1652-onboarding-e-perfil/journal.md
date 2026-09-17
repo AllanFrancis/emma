@@ -2,33 +2,52 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 13:12
-**Onde tô:** início — nada feito ainda
-**Próximo passo:** <primeiro passo concreto>
-**Última decisão:** —
+**Última atualização:** 2026-09-17 15:44
+**Onde tô:** 8 critérios evidenciados; pronto para fechar
+**Próximo passo:** `close` (decisão humana) e merge de `feature/onboarding-e-perfil`
+**Última decisão:** defaults de `intensity`/`speechRate` centralizados, sem pergunta nova
 **Bloqueio atual:** nenhum
-**Se retomar, ler:** main.md desta SPEC
+**Se retomar, ler:** `src/onboarding/questions.ts` (catálogo) e `defaults.ts`
 
 ### Fases
 | # | Descrição | Status | Atualizado |
 |---|---|---|---|
-| 1 | <fase> | pendente | 2026-09-17 12:07 |
+| 1 | Forma de dado do núcleo e mapeamento das 6 perguntas | concluída | 2026-09-17 13:12 |
+| 2 | Catálogo, defaults, perfil e persistência, com testes | concluída | 2026-09-17 15:40 |
+| 3 | Rotas e telas, com progresso por tela real | concluída | 2026-09-17 15:42 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
-- fato:
-- inferência:
-- dúvida:
+- fato: as 6 perguntas mapeiam para `selfAssessedLevel`, `reason`, `blocker`, `minutesPerDay`, `TeacherPreferences.style` e `TeacherPreferences.supportLevel`. Nível por índice = 1..5; minutos = 5/10/20/30.
+- fato: `preferredTime` NÃO é gravado, e teste asserta a ausência da chave. É opcional no tipo, então o corte é compatível.
+- fato: `intensity` e `speechRate` não têm pergunta e `preferenciasEfetivas` exige o objeto completo. Defaults `media`/`normal` vivem só em `src/onboarding/defaults.ts`.
+- fato: `decidirIntent` do núcleo REAL aceita o perfil capturado e devolve Intent coerente — nível autoavaliado vira `targetLevel` sem nenhum `LevelAssessment`.
+- fato: o protótipo calculava progresso sobre 8 perguntas ignorando 4 telas intercaladas, e o progresso pulava. Corrigido contando telas reais, com teste de incremento constante.
+- fato: `bun test` 107 pass / 0 fail; `tsc --noEmit` limpo; `bun run lint` 0 erro (6 avisos pré-existentes no scaffold).
+- fato: zero consumo de Groq, e o percurso completa sem microfone, áudio ou permissão de navegador.
+- inferência: a fidelidade visual ao protótipo é de conteúdo e hierarquia, não de pixel — a forma é livre por decisão registrada no contrato. Não houve comparação visual lado a lado.
+- dúvida: nenhuma aberta para esta SPEC.
 
 ### Respostas-chave do usuário
+- Defaults: "intensity: media" e "speechRate: normal", "explícitos e centralizados, não espalhados pelas telas ou criados implicitamente durante a persistência".
+- "Não crie novas perguntas para esses dois campos nesta SPEC."
+- "Preserve a decisão de não persistir `preferredTime` quando não houver uma regra clara de consumo desse dado. Não quero criar campo órfão apenas porque existe uma pergunta possível."
+- Validação sem Groq: "toda a validação deve poder acontecer sem consumo de Groq."
 
 ### Tentativas que falharam
+- Primeiro `tsc --noEmit` reprovou as rotas novas com erros que pareciam de tipagem (`'/onboarding/$tela' is not assignable to '/'`). Causa: `src/routeTree.gen.ts` é gerado pelo router-plugin e não é atualizado por `bun test` nem por `tsc`. Resolvido com `bun run build`, que regenera. Nunca editar à mão.
 
 ### Arquivos tocados
+- `src/onboarding/` — `questions.ts` (catálogo + percurso + progresso), `defaults.ts`, `perfil.ts`, `momentos.ts`, `storage.ts`, mais `perfil.test.ts` e `storage.test.ts`
+- `src/routes/onboarding.index.tsx` (redireciona) e `src/routes/onboarding.$tela.tsx` (tela por parâmetro de rota)
+- `src/routeTree.gen.ts` — REGENERADO, não editado
+- `docs/features/onboarding.md` — linha de R.7
 
 ### Onde parei
+Pronto para `close`. O destino ao fim do percurso é a raiz por ora: o diagnóstico inicial é da SPEC-20260916-1652-diagnostico-inicial, que está bloqueada no DAG.
 
 ### Sessões (máx 5 linhas + 1 agregada)
+- 2026-09-17 12:07–15:44 — ativação em worktree paralelo, mapeamento contra o núcleo, catálogo e persistência com testes, rotas e telas, 8 critérios evidenciados.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -114,3 +133,40 @@ Registrado aqui para que a escolha do default seja visível em vez de ficar esco
 
 No cliente, sem banco — o `main.md` é explícito e assume o risco: "limpar o navegador apaga o onboarding — mitigação: aceitável sem autenticação, e é exatamente o que a Fase 2 resolve."
 ⎿ commit 12e8ddc
+
+## 2026-09-17 15:44 — [conclusão] Percurso de entrada completo, com perfil que o nucleo consome de verdade
+
+O aluno chega da tela de entrada até um perfil que o núcleo pedagógico consome de verdade.
+
+### O que foi entregue
+
+**Catálogo declarativo, não componente.** `src/onboarding/questions.ts` guarda as seis perguntas com enunciado, opções e subtítulos copiados do protótipo. Uma tela parametrizada pelo catálogo, que é a forma que o protótipo já usava e que o contrato decidiu manter — o diff mostra qualquer desvio de texto.
+
+**Passo como parâmetro de rota**, `/onboarding/$tela`, validado contra o percurso. Deep link, voltar do navegador e retomada saem de graça; o protótipo usava índice em estado global e perdia os três.
+
+**Barra de progresso que conta telas reais.** O protótipo dividia o percentual por 8 perguntas com 4 telas intercaladas fora da contagem, e o progresso pulava. Aqui cada tela vale um passo, com teste provando incremento constante e fechamento em 100%.
+
+**Perfil na forma do núcleo, provado contra o núcleo.** O teste que importa não é de tipo — tipo o compilador já garante. É o de integração: `preferenciasEfetivas` aceita as preferências capturadas, e `decidirIntent` produz um Intent coerente, com o nível autoavaliado virando `targetLevel` sem nenhum `LevelAssessment`. Ou seja, a autoavaliação cumpre exatamente o papel de ponto de partida declarado.
+
+**Defaults centralizados.** `intensity` e `speechRate` não têm pergunta, e `preferenciasEfetivas` exige o objeto completo. Os dois vivem em `src/onboarding/defaults.ts` e em nenhum outro lugar — nenhuma tela e nenhuma função de persistência inventa valor para eles.
+
+### Os dois cortes, mantidos
+
+`quantoFala` e `quando` continuam fora, e `preferredTime` NÃO é gravado. Teste asserta a ausência da chave. O tipo do núcleo tem o campo como opcional e o comentário dele menciona captura no onboarding, mas isso descreve a intenção do protótipo, não uma exigência — gravar criaria campo órfão, contra o critério de aceite.
+
+### Escolhas de implementação que valem registro
+
+**Persistência tolerante.** Toda leitura de `localStorage` devolve vazio em vez de lançar quando o dado está ausente, corrompido, ou quando `localStorage` não existe (SSR, modo privado, armazenamento bloqueado). Onboarding que quebra por navegador sujo é pior que onboarding que recomeça.
+
+**Resposta fora do catálogo é descartada na leitura.** Se uma opção mudar de texto entre versões, o valor velho no navegador deixaria `montarPerfil` lançar numa sessão que o usuário não tem como consertar. O filtro evita isso.
+
+**`montarPerfil` recusa perfil parcial** em vez de gravar meio dado: perfil incompleto faria o núcleo decidir sobre informação que a pessoa não deu.
+
+### Gotcha para as próximas SPECs de tela
+
+`src/routeTree.gen.ts` é GERADO pelo router-plugin e não é atualizado por `bun test` nem por `tsc`. Rota nova sem `bun run build` (ou `dev`) faz o typecheck reprovar com erros que parecem ser de tipagem da rota, mas são de árvore desatualizada. Regenerar, nunca editar à mão.
+
+### Verificação
+
+`bun test` 107 pass / 0 fail (31 novos). `bun x tsc --noEmit` limpo. `bun run lint` 0 erro, com os 6 avisos pré-existentes do scaffold `src/components/ui/`. Zero consumo de Groq, e o percurso completa sem microfone, áudio ou permissão de navegador.
+⎿ commit 8aa503b+dirty · 2 files changed, 9 insertions(+), 10 deletions(-)
