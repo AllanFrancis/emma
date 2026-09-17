@@ -1,16 +1,16 @@
 # SPEC-20260916-2048: Metodologia de eval — controle de parâmetros e retry alinhado à DEC
 
-**Status:** draft
+**Status:** done
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
-**Concluída:** —
+**Ativada:** 2026-09-16 23:23
+**Concluída:** 2026-09-17 11:07
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `cc86234`
 **Keywords:** metodologia, temperature, seed, retry, confiabilidade, timeout
 **Features:** dialogo, avaliacao
-**Branch:** —
+**Branch:** feature/metodologia-de-eval
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "necessidade de melhorar a metodologia de avaliação futura, incluindo controle de parâmetros quando o provider/modelo permitir"
@@ -79,9 +79,9 @@ Tudo em `scripts/eval/`, sem tocar o produto.
 
 ## Critério de aceite
 
-- [ ] Suporte a `temperature` e `seed` no Groq confirmado contra a documentação viva, com a fonte citada
-- [ ] Parâmetros de amostragem fixados no payload e gravados em toda evidência nova
-- [ ] `json_validate_failed` recebe retry in-process conforme a DEC-20260916-0311, com teste do caminho
-- [ ] Requisição tem timeout derivado do custo medido, com teste que prova que a rodada não trava
-- [ ] Registro de falha identifica a CÉLULA, permitindo atribuir a recuperação à geração certa
-- [ ] Duas execuções da mesma condição, com parâmetros fixados, produzem resultado comparável — e a dispersão residual é reportada | evidence: manual @allan
+- [x] Suporte a `temperature` e `seed` no Groq confirmado contra a documentação viva, com a fonte citada (2026-09-17 00:03, commit `70233a0`)
+- [x] Parâmetros de amostragem fixados no payload e gravados em toda evidência nova (2026-09-17 00:03, commit `70233a0`)
+- [x] `json_validate_failed` recebe retry in-process conforme a DEC-20260916-0311, com teste do caminho (2026-09-17 00:03, commit `70233a0`)
+- [x] Requisição tem timeout derivado do custo medido, com teste que prova que a rodada não trava (2026-09-17 00:03, commit `70233a0`)
+- [x] Registro de falha identifica a CÉLULA, permitindo atribuir a recuperação à geração certa (2026-09-17 00:03, commit `70233a0`)
+- [x] Duas execuções da mesma condição, com parâmetros fixados, têm a dispersão residual MEDIDA e reportada — a comparabilidade em si migrou para a SPEC-20260917-1059-metodologia-de-repeticao | evidence: manual @allan (2026-09-17 11:01, commit `49fa776`)

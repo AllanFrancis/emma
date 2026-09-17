@@ -9,8 +9,10 @@
 ### Concluídas
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1652 | 2026-09-17 | `pendente` | Núcleo pedagógico — mediana, teto por sustentação e histerese como código testável
+- SPEC-20260916-2048 | 2026-09-17 | `pendente` | Metodologia de eval — parâmetros de amostragem controlados e gravados; mediu que `seed` não reproduz no Groq
 ### Planejadas (future/)
 - SPEC-20260916-1652-diagnostico-inicial | Diagnóstico inicial — primeira vitória e primeira amostra | Substitui a heurística `hasPolite` pela rubrica com evidência citada
+- SPEC-20260917-1059-metodologia-de-repeticao | Metodologia de repetição | Comparabilidade sobre repetição e medida agregada, já que `seed` não reproduz
 
 ## Estado atual
 
@@ -38,6 +40,8 @@ medir sobre-correção.
 - DEC-20260916-0313-nivel-mediana [ativa] (SPEC-20260916-0109) — calcular o nível pela mediana dos cinco critérios, com teto quando sustentação de conversa ficar dois ou mais níveis abaixo.
 - DEC-20260916-0314-evidencia-obrigatoria [ativa] (SPEC-20260916-0109) — classificação sem trecho citado da fala é inválida; ausência de amostra produz `null`, nunca estimativa inventada.
 - DEC-20260916-0315-histerese-nivel [ativa] (SPEC-20260916-0109) — promoção exige duas reavaliações consecutivas e rebaixamento exige três, reduzindo impacto de variação ocasional.
+- DEC-20260917-0002-amostragem-controlada [ativa] (SPEC-20260916-2048-metodologia-de-eval) — `temperature` fixada em 1 (o default da API, sob o qual as 215 evidências arquivadas foram geradas) e `seed` fixado em 20260916, ambos explícitos no payload e gravados na evidência junto com `seed_efetivo` (`x_groq.seed`) e `system_fingerprint`. Não se usa temperature 0: além de degradar naturalidade, o Groq a converte para 1e-8 e a quebra de comparabilidade com o histórico custaria mais do que a variância removida. `--temperature`/`--seed` permitem variar de propósito, com o valor usado sempre na evidência.
+- DEC-20260917-0003-timeout-derivado [ativa] (SPEC-20260916-2048-metodologia-de-eval) — timeout de requisição em 30s, derivado das 215 evidências com `usage`: parede máxima observada 2,91s (p99 2,39s) e pior caso estimado de geração ~8,5s (3.433 tokens no throughput p1 de 403 tok/s). Rodada sem timeout é indistinguível de rodada lenta — a da matriz pendurou ~15min em `livre-09-n4-direta`.
 - DEC-20260917-0025-confianca-baixa-nao-move-nivel [ativa] (SPEC-20260916-1652) — avaliação de confiança `baixa` (≤2 critérios pontuados) NÃO participa da contagem de consecutivas da histerese. A rubrica já manda usar o nível autoavaliado nesse caso; contá-la na sequência deixaria amostra insuficiente mover o nível, que é o oposto da DEC-20260916-0314. Sem nenhuma avaliação confiável, o nível vigente é o autoavaliado, com confiança `baixa`.
 - DEC-20260917-0026-nota-sem-evidencia-e-descartada [ativa] (SPEC-20260916-1652) — nota de critério sem citação literal é tratada como `null` e sai da mediana, em vez de contaminá-la. A DEC-20260916-0314 diz que classificação sem evidência é saída inválida; o núcleo aplica isso descartando, não corrigindo o valor.
 
@@ -47,3 +51,6 @@ medir sobre-correção.
 ## Gotchas
 - SPEC-20260916-0109 | grader mecânico pode classificar idioma incorretamente (2026-09-16 01:58) — inspecione manualmente os casos reprovados antes de divulgar percentuais.
 - SPEC-20260916-0109 | rodada com um turno isolado não mede coerência longitudinal (2026-09-16 03:31) — trate a recomendação desta SPEC como decisão da Fase 1, não validação definitiva de conversas completas.
+- SPEC-20260916-2048-metodologia-de-eval | `seed` NÃO dá reprodutibilidade no Groq (2026-09-17 00:23) — medido: duas execuções de `cafe-01` com `temperature: 1`, `seed: 20260916`, `seed_efetivo` confirmado e `system_fingerprint` IDÊNTICO (`fp_84bb35977d`) divergiram em 7 dos 9 campos do turno, com +8,4% de token. A doc do Groq já avisa que é "best effort"; a ressalva não é teórica. Comparabilidade entre rodadas tem de vir de REPETIÇÃO e medida agregada, nunca de seed fixo — uma célula medida uma vez não sustenta conclusão sobre diferença entre condições.
+- SPEC-20260916-2048-metodologia-de-eval | o orçamento de tokens do Groq é da ORGANIZAÇÃO e drena rápido (2026-09-17) — o `retry-after` subiu de 20s para 502s no meio de uma rodada de 3 falas. Planeje rodada longa com isso em conta; o runner preserva progresso e retoma, mas a rodada leva o tempo do backoff.
+- SPEC-20260916-2048-metodologia-de-eval | `throttleByTokenBudget` lê header ausente como zero (2026-09-17) — `Number(null)` é 0, então falta de `x-ratelimit-remaining-tokens` faz o runner dormir 20s por turno em silêncio. Não corrigido: está fora do escopo da SPEC que descobriu. Candidato a endurecer.
