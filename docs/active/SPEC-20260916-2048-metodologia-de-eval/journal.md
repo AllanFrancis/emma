@@ -2,12 +2,12 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 00:24
-**Onde tô:** critérios 1-5 carimbados (`70233a0`); critério 6 ABERTO, aguardando leitura do usuário
-**Próximo passo:** usuário decide sobre o critério 6 (R.6.2) — implementar agora / SPEC nova / aceitar gap
-**Última decisão:** temperature fixada em 1 e seed em 20260916; timeout de 30s derivado de 215 turnos
-**Bloqueio atual:** critério 6 — a dispersão foi medida e é ALTA; "resultado comparável" depende da leitura do critério
-**Se retomar, ler:** main.md + a entrada `[descoberta]` sobre seed não dar reprodutibilidade
+**Última atualização:** 2026-09-17 11:04
+**Onde tô:** concluída — 6/6 critérios, depois de o critério 6 ser partido por decisão do usuário
+**Próximo passo:** fechar (`close`); a comparabilidade segue na SPEC-20260917-1059-metodologia-de-repeticao
+**Última decisão:** critério 6 migra para a SPEC nova (R.6.2, resposta "3" do usuário) — antes → depois no LOG
+**Bloqueio atual:** nenhum
+**Se retomar, ler:** main.md + as entradas `[descoberta]` (seed não reproduz) e `[nota]` (fingerprint muda por requisição)
 
 ### Fases
 | # | Descrição | Status | Atualizado |
@@ -17,7 +17,7 @@
 | 3 | Retry in-process de `json_validate_failed` | concluída | 2026-09-17 00:03 |
 | 4 | Timeout derivado do custo medido | concluída | 2026-09-17 00:03 |
 | 5 | Registro de falha por CÉLULA | concluída | 2026-09-17 00:03 |
-| 6 | Duas execuções comparáveis + dispersão reportada | dispersão medida; aceite do critério ABERTO | 2026-09-17 00:23 |
+| 6 | Dispersão residual medida e reportada (comparabilidade migrou) | concluída | 2026-09-17 11:04 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
@@ -34,6 +34,7 @@
 ### Respostas-chave do usuário
 - 2026-09-16: "A chave do Groq fica somente em `metodologia-de-eval`; as outras SPECs devem continuar executáveis offline." → `.env.local` copiado só para este worktree.
 - 2026-09-16: "siga de forma autonoma!" → rodadas reais executadas sem confirmação a cada passo.
+- 2026-09-17: "3" → das três saídas do R.6.2 para o critério 6, o usuário escolheu SPEC nova. Criada a SPEC-20260917-1059-metodologia-de-repeticao; `tom-versus-pedagogia` passou a depender dela.
 
 ### Tentativas que falharam
 - `process.exit()` no fim do self-test: com stdout em PIPE no Windows, trunca tudo e o teste rodava mudo, com código 0. Trocado por `process.exitCode`.
@@ -48,8 +49,9 @@
 - Evidência: `evidence/openai_gpt-oss-20b/repeticao-1/` (3 falas) e `repeticao-2/` (1 fala), mais 4 registros em `_failures/`.
 
 ### Onde parei
-Critérios 1-5 carimbados. O 6 está medido e documentado, mas NÃO marcado: quem lê
-"resultado comparável" é o usuário, não eu.
+6/6 carimbados. O critério 6 foi partido ao meio por decisão do usuário no fluxo R.6.2
+(resposta "3"): a dispersão medida e reportada ficou aqui, a comparabilidade virou a
+SPEC-20260917-1059-metodologia-de-repeticao. Falta só o `close`.
 
 ### Sessões (máx 5 linhas + 1 agregada)
 - 2026-09-16 23:23→2026-09-17 00:24 — ativação, doc viva do Groq, as 5 fases de instrumento, duas rodadas reais e a medição da dispersão.
@@ -266,3 +268,144 @@ segunda metade está cumprida e documentada. A primeira depende de como o usuár
 espúrias foram eliminadas, SIM; comparável no sentido de saída parecida, NÃO. A leitura é
 dele, não minha.
 ⎿ commit 70233a0+dirty · 2 files changed, 47 insertions(+), 6 deletions(-)
+
+## 2026-09-17 11:01 — [decisão] Criterio 6 migra para a SPEC-20260917-1059-metodologia-de-repeticao (antes -> depois, citacao do usuario)
+
+Mudança de CONTRATO no critério 6, com validação humana explícita. O usuário escolheu, no
+fluxo R.6.2, a opção "3. SPEC nova para a metodologia de repetição, e este critério migra
+para ela" — resposta literal: "3", às três opções que eu apresentei em 2026-09-17:
+
+  1. Aceitar o gap (marcador [aceito-incompleto: ...])
+  2. Medir mais antes (--temperature 0 e N>2)
+  3. SPEC nova para a metodologia de repetição, e este critério migra para ela
+
+ANTES:
+  - [ ] Duas execuções da mesma condição, com parâmetros fixados, produzem resultado
+        comparável — e a dispersão residual é reportada | evidence: manual @allan
+
+DEPOIS:
+  - [ ] Duas execuções da mesma condição, com parâmetros fixados, têm a dispersão residual
+        MEDIDA e reportada — a comparabilidade em si migrou para a
+        SPEC-20260917-1059-metodologia-de-repeticao | evidence: manual @allan
+
+O que mudou, exatamente: o critério tinha DUAS metades e só uma foi entregue.
+
+  (a) "a dispersão residual é reportada" — ENTREGUE. Duas execuções de `cafe-01` com
+      temperature 1, seed 20260916, seed_efetivo confirmado e system_fingerprint idêntico
+      (fp_84bb35977d): 7 dos 9 campos divergiram, +8,4% de token. Está medido, documentado
+      na entrada [descoberta] deste journal e registrado como gotcha em
+      docs/features/avaliacao.md.
+  (b) "produzem resultado comparável" — NÃO entregue, e agora se sabe POR QUE: `seed` não
+      reproduz no Groq. Isso não é lacuna de execução desta SPEC, é achado dela. Construir
+      comparabilidade sobre repetição e medida agregada é trabalho próprio, com N,
+      critério de suficiência e orçamento de tokens — e virou a
+      SPEC-20260917-1059-metodologia-de-repeticao, criada em future/ e no DAG do programa
+      emma.
+
+O que esta SPEC continua devendo, e é o que o critério pede agora: nada além do que já
+está no disco. A dispersão está medida e reportada. Por isso o critério pode ser
+evidenciado sem redução silenciosa de escopo — a parte não entregue saiu do contrato POR
+DECISÃO DO USUÁRIO e tem endereço, não sumiu.
+
+Efeito colateral no DAG, registrado no commit 9e8bd72 em main:
+`SPEC-20260916-2048-tom-versus-pedagogia` passou a depender da SPEC nova em vez desta,
+porque a condição de controle por repetição deixou de ser refinamento e passou a ser o
+único caminho para o desenho dela. É uma aresta reversível em uma linha.
+
+R.6.2 respeitado: nenhum critério foi aceito incompleto, e nenhuma redução de escopo
+partiu de mim.
+⎿ commit 49fa776+dirty · 1 file changed, 1 insertion(+), 1 deletion(-)
+
+## 2026-09-17 11:04 — [nota] repeticao-3 preservada; system_fingerprint muda por REQUISICAO (6 distintos em 7 chamadas)
+
+Material extra, preservado como `repeticao-3/`, e um detalhe que reforça o achado.
+
+Origem: a rodada `--limit 3` que eu havia abortado por tempo continuou viva como processo
+órfão e terminou de gravar antes de eu matá-la. São 3 turnos válidos e completos, com o
+mesmo `seed: 20260916` e `seed_efetivo` confirmado. Não apaguei: é amostra legítima da
+mesma condição, e a invariante desta SPEC proíbe descartar ocorrência gravada. Mas também
+NÃO refiz a análise de dispersão em cima dela — o critério já estava medido e reportado, e
+refazer no fechamento seria mudar o número de referência na última hora. Fica como
+material para a SPEC-20260917-1059-metodologia-de-repeticao.
+
+O detalhe novo: o `system_fingerprint` NÃO é estável entre chamadas.
+
+  repeticao-1/cafe-01 -> fp_84bb35977d
+  repeticao-1/cafe-02 -> fp_1074f9ce08
+  repeticao-1/cafe-03 -> fp_e23fc997ca
+  repeticao-2/cafe-01 -> fp_84bb35977d
+  repeticao-3/cafe-01 -> fp_a4315eb300
+  repeticao-3/cafe-02 -> fp_24bfb4a850
+  repeticao-3/cafe-03 -> fp_4f7e7dc26e
+
+Sete chamadas, seis fingerprints distintos. O backend roda por requisição, não por rodada.
+
+Isso não enfraquece a medição da dispersão — fortalece. O par que sustentou o achado
+(`repeticao-1/cafe-01` e `repeticao-2/cafe-01`) caiu, por sorte, no MESMO fingerprint
+`fp_84bb35977d`. Ou seja: mesmo seed, mesmo backend, e a saída divergiu em 7 dos 9 campos.
+A causa "o backend mudou" foi eliminada por evidência naquele par específico, e é
+justamente por isso que a variância de amostragem pôde ser afirmada.
+
+E acrescenta uma consequência prática para a SPEC nova: a estratégia que a doc do Groq
+sugere — acompanhar `system_fingerprint` para saber quando o determinismo deixou de valer —
+não é utilizável como controle aqui, porque o fingerprint muda quase sempre. Esperar por
+"mesmo fingerprint" para comparar duas rodadas significaria descartar a maior parte das
+amostras.
+⎿ commit 94882f7+dirty · 2 files changed, 49 insertions(+), 2 deletions(-)
+
+## 2026-09-17 11:04 — [conclusão] Instrumento de medicao fechado: amostragem controlada, retry de geracao, timeout derivado, falha por celula
+
+O instrumento de medição deixou de ter três buracos, e o quarto virou achado com endereço
+próprio.
+
+Entregue em `scripts/eval/run.mjs`, sem tocar o produto:
+
+- AMOSTRAGEM CONTROLADA. `temperature: 1` e `seed: 20260916` explícitos no payload,
+  resolvidos UMA vez por rodada (`configurarAmostragem`) para não haver evidência com
+  parâmetros diferentes dentro da mesma rodada. Gravados na evidência junto de
+  `seed_efetivo` (o `x_groq.seed` que o Groq devolve) e `system_fingerprint`. Suporte
+  confirmado na referência viva da API, não por analogia com a OpenAI. Flags
+  `--temperature`/`--seed` para variar de propósito, com o valor sempre na evidência.
+  Temperature 1 e não 0 por três razões: é o regime das 215 evidências arquivadas, o
+  main.md declarava o risco de temperatura baixa degradar naturalidade, e o Groq converte
+  0 para 1e-8 de todo modo.
+- RETRY DE GERAÇÃO. `json_validate_failed` (HTTP 400 com esse `code`) passou a ser
+  classificado como falha de GERAÇÃO e recebe retry in-process imediato, teto 3, com
+  orçamento SEPARADO do rate limit (teto 6, com backoff, porque ali há o que refilar).
+  Cumpre o que a DEC-20260916-0311 previa desde sempre e nunca teve implementação no
+  runner: antes, um 400 desses parava a rodada inteira.
+- TIMEOUT DERIVADO. 30s via `AbortSignal.timeout`, tirado de dado, não arbitrado: nas 215
+  evidências com `usage`, a parede máxima foi 2,91s (p99 2,39s) e o pior caso estimado de
+  geração ~8,5s (3.433 tokens no throughput p1 de 403 tok/s). É ~10x o pior caso observado
+  e curto o bastante para matar a conexão pendurada que travou a matriz por ~15 minutos.
+- FALHA POR CÉLULA. O nome do arquivo em `_failures/` carrega a célula
+  (`fala-nNivel-tom`), e a falha grava `celula`, `nivel` e `amostragem` em campos próprios.
+  Antes, duas células da mesma fala gravavam com o mesmo prefixo e a métrica de
+  confiabilidade não sabia qual geração falhou nem qual recuperou.
+- SELF-TEST SEM REDE. `--self-test` com 15 asserções e `fetchImpl`/`timeoutMs` injetáveis:
+  classificação de falha, retry que recupera na 3ª geração, timeout que dispara, nome de
+  célula e gravação de amostragem. Prova o que a rodada real não pode provar sem queimar
+  cota.
+
+O retry de rate limit foi exercitado em PRODUÇÃO nas duas rodadas reais — uma esperou 20s,
+outra 502s — e recuperou nas duas.
+
+O achado que vale mais que o código: com temperature, seed, `seed_efetivo` e
+`system_fingerprint` IDÊNTICOS, duas execuções de `cafe-01` divergiram em 7 dos 9 campos,
+com +8,4% de token. `seed` não reproduz no Groq, e a ressalva da doc ("best effort") não é
+teórica. Comparabilidade entre rodadas tem de vir de REPETIÇÃO e medida agregada — uma
+célula medida uma vez não sustenta conclusão sobre diferença entre condições.
+
+Isso só pôde ser AFIRMADO porque o instrumento eliminou as outras duas causas por
+evidência: parâmetro diferente e backend diferente. Antes, as três se confundiam numa
+ressalva única. É o resultado mais útil da SPEC, e é negativo.
+
+O critério 6 foi partido ao meio por decisão do usuário no fluxo R.6.2 (resposta "3"): a
+dispersão medida e reportada fica aqui; construir a comparabilidade virou a
+SPEC-20260917-1059-metodologia-de-repeticao, já em future/ e no DAG. Como efeito,
+`tom-versus-pedagogia` passou a depender dela em vez desta.
+
+Fora de escopo e NÃO corrigido, registrado como gotcha: `throttleByTokenBudget` lê header
+de cota ausente como zero (`Number(null)`) e dorme 20s por turno em silêncio. Descobri
+pelo self-test; consertar não é desta SPEC.
+⎿ commit 94882f7+dirty · 2 files changed, 86 insertions(+), 2 deletions(-)

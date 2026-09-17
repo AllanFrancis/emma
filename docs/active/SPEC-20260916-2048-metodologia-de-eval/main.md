@@ -84,4 +84,4 @@ Tudo em `scripts/eval/`, sem tocar o produto.
 - [x] `json_validate_failed` recebe retry in-process conforme a DEC-20260916-0311, com teste do caminho (2026-09-17 00:03, commit `70233a0`)
 - [x] Requisição tem timeout derivado do custo medido, com teste que prova que a rodada não trava (2026-09-17 00:03, commit `70233a0`)
 - [x] Registro de falha identifica a CÉLULA, permitindo atribuir a recuperação à geração certa (2026-09-17 00:03, commit `70233a0`)
-- [ ] Duas execuções da mesma condição, com parâmetros fixados, produzem resultado comparável — e a dispersão residual é reportada | evidence: manual @allan
+- [x] Duas execuções da mesma condição, com parâmetros fixados, têm a dispersão residual MEDIDA e reportada — a comparabilidade em si migrou para a SPEC-20260917-1059-metodologia-de-repeticao | evidence: manual @allan (2026-09-17 11:01, commit `49fa776`)
