@@ -12,7 +12,7 @@
 **Features:** dialogo
 **Branch:** feature/motor-de-dialogo
 **Programa:** emma
-**Workspace:** —
+**Workspace:** inline
 **Origem:** usuário em 2026-09-16 16:52
 **Resumo:** Transforma `PedagogicalIntent` em turno de conversa por server function no Groq, com schema estrito, retry e fallback roteirizado — e a chave de API nunca no cliente.
 

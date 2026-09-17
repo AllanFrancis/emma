@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 12:14
+**Última atualização:** 2026-09-17 12:43
 **Onde tô:** início — nada feito ainda
 **Próximo passo:** <primeiro passo concreto>
 **Última decisão:** —
@@ -55,3 +55,44 @@ Esta SPEC entrega a MECÂNICA da janela de histórico que o escopo dela já exig
 
 **Pendência de porte G:** `interop: inline` no manifesto e porte G exigem pergunta explícita ao usuário sobre o caminho do pipeline (`completo | só techspec | só tasks | sem pipeline`) e, havendo pipeline, o modo de execução (`autônomo | com gates`) — por `docs/rules/interop.md`, nunca escolha implícita. `**Workspace:** —` no main.md até essa definição. Implementação não começa antes disso.
 ⎿ commit 50a0c49
+
+## 2026-09-17 12:43 — [decisão] Porte G: pipeline so tasks, execucao autonoma, invariantes por teste e nao por gate humano
+
+Decisão do usuário em 2026-09-17, no checkpoint de porte G exigido por `docs/rules/interop.md`.
+
+### Caminho do pipeline: só tasks. Modo de execução: autônomo.
+
+Citação: "Adote só tasks + modo autônomo. Não vejo necessidade de criar um techspec adicional agora, porque as decisões arquiteturais relevantes já estão registradas no `main.md`. O que falta é decompor a implementação e validar mecanicamente as invariantes já definidas."
+
+- pipeline: **tasks** (uso à la carte do porte G parcial — o `main.md` vale como documento de requisitos, item 3 do preâmbulo SDD Interop)
+- execução: **autônoma** — apresentações de plano/lista viram informativas, registradas no journal, e a sessão prossegue
+- **R.6.2 continua valendo integralmente.** Modo autônomo NÃO afrouxa aceite: qualquer decisão que mude critério de aceite ou escopo exige aprovação explícita do usuário. Só o usuário aceita critério incompleto.
+- `interop: inline` no manifesto ⇒ o workspace é a própria pasta desta SPEC. Toda referência das skills a `./tasks/prd-<slug>/` significa `docs/active/SPEC-20260916-1652-motor-de-dialogo/`.
+
+### Verificação por teste, não por gate humano
+
+Citação: "a proteção da chave/API e demais fronteiras de confiança devem ser verificadas por testes/inspeção, não por gate humano adicional."
+
+Consequência de desenho: a invariante "NUNCA a chave de API aparece no bundle do cliente" tem de virar **teste automatizado de inspeção de build**, não item de checklist para alguém olhar. Mesma coisa para as outras fronteiras de confiança: se a invariante é mecanicamente verificável, ela é teste. Gate humano fica reservado ao que só pessoa julga.
+
+### Limite duro do escopo das tasks
+
+Citação: "Não deixe as tasks ampliarem o contrato existente. Elas devem decompor o que já foi decidido entre server function, prompt puro, adapter Groq e dados da missão."
+
+As tasks são DECOMPOSIÇÃO, nunca extensão. As quatro superfícies nomeadas pelo usuário são o recorte:
+
+1. server function — fronteira de confiança, único ponto que fala com o Groq
+2. prompt puro — função `Intent -> string`, testável sem rede
+3. adapter Groq — trocável sem tocar núcleo nem interface
+4. dados da missão — o roteiro (`Mission.script[]`) volta ao domínio para servir de fallback
+
+Task que precise de decisão nova de arquitetura é sinal de que o contrato está incompleto — nesse caso a rota é R.6.2 (perguntar), não resolver na task.
+
+### Fronteira reafirmada com a `retencao-de-contexto`
+
+Já registrada na nota de fronteiras desta SPEC e reafirmada pelo usuário: "No `motor-de-dialogo`, por ser porte G e envolver janela/histórico, adapter e servidor, mantenha atenção especial às fronteiras de responsabilidade. Não deixe essa SPEC absorver antecipadamente regras que pertencem à futura `retencao-de-contexto`."
+
+Operacionalmente: a janela de histórico aqui é **orçamento em tokens**, medido e não estimado. O que sobrevive dentro dela é política de retenção, e política é da `retencao-de-contexto`. Nada de heurística de "dado já fornecido", deduplicação de pergunta ou sumarização que decida o que preservar.
+
+Nota de contexto útil para a decomposição: a `semantica-next-action` fechou hoje, em paralelo, decidindo que **o núcleo é fonte de verdade de `next_action`** e o modelo apenas propõe. Isso confirma a invariante já contratada aqui — "NUNCA o motor toma decisão pedagógica" — e reforça que o motor não deve corrigir nem sobrescrever `next_action`: ele entrega o turno validado, e a política é de outra camada.
+⎿ commit f374a9f+dirty · 1 file changed, 1 insertion(+), 1 deletion(-)
