@@ -153,13 +153,38 @@ const CHECKS = [
   //
   // Sem excecao por decisao do usuario em 2026-09-17: `continue_mission` e
   // `complete_mission` com correcao pendente TAMBEM reprovam, ainda que nunca tenham
-  // ocorrido (0 de 117). Permitir observacao no fecho sem nova tentativa exige
+  // ocorrido (0 de 107). Permitir observacao no fecho sem nova tentativa exige
   // semantica NOVA no contrato do turno — distinguir correcao bloqueante de
   // informativa — e nao afrouxamento desta checagem. Ver tabela-de-coerencia.md.
+  //
+  // ---------------------------------------------------------------------------------
+  // ESTATUTO DA C15: CHECAGEM DE OBSERVACAO, NAO NORMA. Decisao do usuario 2026-09-17.
+  //
+  // A C15 MEDE sob a regra estrita e REPORTA. Ela NAO e regra normativa suficiente para
+  // reprovar o nucleo pedagogico nem para bloquear CI.
+  //
+  // Motivo: `src/domain/next-action.ts` implementa uma politica ANTERIOR, explicita e
+  // testada — `if (temCorrecao && transition !== "complete")` — pela qual fechar a missao
+  // vence a cobranca de repeticao, "porque cobrar repeticao depois de o objetivo ter sido
+  // cumprido transformaria a vitoria do aluno em mais uma tarefa". Isso NAO e bug: e
+  // decisao de dominio com justificativa e teste nomeado, e permanece valida.
+  //
+  // Logo, duas leituras coexistem DE PROPOSITO ate a SPEC do contrato de correcoes:
+  //   C15    -> "sob a regra estrita, quantos turnos com correcao nao pedem aplicacao?"
+  //   nucleo -> "uma missao concluida pode vencer a necessidade de repeticao."
+  //
+  // A divergencia e limitada a `complete_mission`: para `continue_mission` o nucleo ja
+  // forca `retry`, coerente com a regra estrita.
+  //
+  // NAO transforme a C15 em gate (nem some ao `assertContract`) antes da SPEC futura que
+  // resolve, EM CONJUNTO: correcao bloqueante x informativa, comportamento de
+  // `next_action`, a excecao de `complete_mission`, o schema do turno, o nucleo, esta
+  // checagem e a compatibilidade com a evidencia historica.
+  // ---------------------------------------------------------------------------------
   {
     id: "C15",
-    name: "correcao emitida pede aplicacao",
-    criterion: "correcao sem aplicacao e informacao, nao ensino — espelho de C12",
+    name: "correcao emitida pede aplicacao (observacao)",
+    criterion: "mede a regra estrita; nao reprova o nucleo — ver estatuto acima",
     check: (turn) =>
       countCorrections(turn) === 0 || !Array.isArray(turn.corrections)
         ? null
@@ -2163,6 +2188,17 @@ function levantamentoAplicacao() {
       `\n  A LACUNA: ${naoPedeAplicacao} de ${comCorrecao} turnos com correcao (${pct(naoPedeAplicacao, comCorrecao)}) nao pedem aplicacao`,
     );
     console.log("  (e exatamente o que a C15 acusa)");
+    const emFechamento = distribuicao.com.complete_mission ?? 0;
+    if (emFechamento > 0) {
+      console.log(
+        `  DESTES, ${emFechamento} em complete_mission — DIVERGENCIA CONHECIDA, nao defeito:`,
+      );
+      console.log(
+        "  o nucleo permite fechar missao com correcao de proposito (src/domain/next-action.ts).",
+      );
+      console.log("  A C15 mede sob a regra estrita; a reconciliacao e da SPEC do contrato de");
+      console.log("  correcoes (bloqueante x informativa). Nao trate como reprovacao.");
+    }
 
     if (casos.length > 0) {
       console.log("\n  casos:");
