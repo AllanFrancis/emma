@@ -14,9 +14,10 @@
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
 - SPEC-20260916-1652 | 2026-09-16 | `e4ecf53` | Eval de personalidade — matriz tom × nível e comparação controlada v4 × v5
 - SPEC-20260916-1652-eval-conversa-multiturno | 2026-09-16 | `pendente` | Eval de conversa multiturno — coerência longitudinal e avanço de missão
+- SPEC-20260916-2048-regra-fala-transcrita | 2026-09-16 | `pendente` | Regra da fala transcrita — C14 torna a DEC-20260916-0312 verificável
 ### Planejadas (future/)
 - SPEC-20260916-2048-semantica-next-action | Semântica de next_action | Correção emitida sem pedir aplicação não é medida por nenhuma checagem
-- SPEC-20260916-2048-regra-fala-transcrita | Regra da fala transcrita | Instrução no prompt não impediu a violação da DEC-20260916-0312
+
 - SPEC-20260916-2048-metodologia-de-eval | Metodologia de eval | Sem controle de parâmetros, diferença isolada não é atribuível ao prompt
 - SPEC-20260916-1652-motor-de-dialogo | Motor de diálogo — server function, strict JSON e fallback | Tira a chave do cliente e garante que um turno nunca morre na tela
 - SPEC-20260916-1652-conversa-e-missoes | Conversa e missões — a tela que é o produto | Traz o catálogo de missões de volta ao domínio
