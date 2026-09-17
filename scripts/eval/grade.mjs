@@ -145,6 +145,199 @@ function evaluateTurn(turn, record) {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Checagens LONGITUDINAIS (SPEC-20260916-1652). As 13 checagens acima recebem um turno
+// sem historia: por construcao nenhuma delas pode ver repeticao, retencao ou progressao.
+// Estas recebem o turno E os turnos anteriores da MESMA conversa.
+// ---------------------------------------------------------------------------
+
+function normalizar(texto) {
+  return String(texto ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// So a pergunta interessa: a Emma pode repetir uma afirmacao ("Got it.") sem prejuizo,
+// mas repetir a PERGUNTA e o que faz o aluno sentir que nao foi ouvido.
+function extrairPerguntas(replyEn) {
+  return String(replyEn ?? "")
+    .split(/(?<=[.!?])\s+/)
+    .filter((frase) => frase.trim().endsWith("?"))
+    .map(normalizar)
+    .filter(Boolean);
+}
+
+// Interrogativas e auxiliares nao distinguem uma pergunta de outra: e o que SOBRA delas
+// que diz do que a pergunta trata. "What size would you like?" e "Which size do you
+// want?" compartilham uma unica palavra de conteudo — `size` — e sao a mesma pergunta
+// para quem esta conversando. Jaccard sobre os tokens brutos daria 0.25 e deixaria passar
+// exatamente o caso que esta checagem existe para pegar.
+const PALAVRAS_VAZIAS = new Set(
+  [
+    "what which who whom whose when where why how",
+    "do does did is are am was were will would can could shall should may might have has had",
+    "a an the you your yours i me my we us our it its that this these those",
+    "to of for with about and or so then there here please",
+    // Verbos de PEDIDO, nao de conteudo: "would you like" e "do you want" sao a mesma
+    // pergunta, e o que a distingue de outra e o substantivo que vem depois.
+    "like want need get",
+  ]
+    .join(" ")
+    .split(" "),
+);
+
+function tokensDeConteudo(texto) {
+  return new Set(texto.split(" ").filter((token) => token && !PALAVRAS_VAZIAS.has(token)));
+}
+
+function jaccard(tokensA, tokensB) {
+  const intersecao = [...tokensA].filter((token) => tokensB.has(token)).length;
+  const uniao = new Set([...tokensA, ...tokensB]).size;
+  return uniao === 0 ? 0 : intersecao / uniao;
+}
+
+function similaridade(a, b) {
+  const conteudoA = tokensDeConteudo(a);
+  const conteudoB = tokensDeConteudo(b);
+  // Pergunta feita so de palavras vazias ("And you?") nao tem conteudo a comparar; ali o
+  // token bruto e a unica evidencia disponivel.
+  if (conteudoA.size === 0 || conteudoB.size === 0) {
+    return jaccard(new Set(a.split(" ")), new Set(b.split(" ")));
+  }
+  return jaccard(conteudoA, conteudoB);
+}
+
+const LIMIAR_PERGUNTA_REPETIDA = 0.7;
+
+const LONGITUDINAL_CHECKS = [
+  {
+    id: "L1",
+    name: "nao repete pergunta ja feita",
+    criterion: "quem repete pergunta nao estava ouvindo",
+    check: (turno, contexto) => {
+      if (contexto.anteriores.length === 0) return null;
+      const anteriores = contexto.anteriores.flatMap((t) => extrairPerguntas(t.resposta?.reply_en));
+      const atuais = extrairPerguntas(turno.resposta?.reply_en);
+      if (atuais.length === 0 || anteriores.length === 0) return null;
+      return !atuais.some((atual) =>
+        anteriores.some((anterior) => similaridade(atual, anterior) >= LIMIAR_PERGUNTA_REPETIDA),
+      );
+    },
+  },
+  {
+    id: "L2",
+    name: "nao pede dado que o aluno ja deu",
+    criterion: "retencao de contexto — o modo de falha mais visivel para quem usa",
+    check: (turno, contexto) => {
+      const proibidos = turno.espera?.nao_pedir ?? [];
+      if (proibidos.length === 0 || contexto.anteriores.length === 0) return null;
+      const reply = normalizar(turno.resposta?.reply_en);
+      return !proibidos.some((padrao) => reply.includes(normalizar(padrao)));
+    },
+  },
+  {
+    id: "L3",
+    name: "nao repete correcao ja feita",
+    criterion: "repetir correcao e punir quem acabou de acertar",
+    check: (turno, contexto) => {
+      if (turno.espera?.nao_corrigir_de_novo !== true) return null;
+      const correcoes = Array.isArray(turno.resposta?.corrections)
+        ? turno.resposta.corrections
+        : [];
+      if (correcoes.length === 0) return null;
+      const originaisCorrigidos = new Set();
+      const sugestoesDadas = new Set();
+      for (const anterior of contexto.anteriores) {
+        for (const c of anterior.resposta?.corrections ?? []) {
+          originaisCorrigidos.add(normalizar(c?.original));
+          sugestoesDadas.add(normalizar(c?.suggested));
+        }
+      }
+      const falaAtual = normalizar(turno.aluno);
+      return !correcoes.some((c) => {
+        const original = normalizar(c?.original);
+        const sugerido = normalizar(c?.suggested);
+        // Perna 1: o trecho citado ja foi corrigido antes — ou a Emma esta corrigindo de
+        // novo, ou esta citando fala de turno anterior, e as duas coisas sao defeito.
+        if (original && originaisCorrigidos.has(original)) return true;
+        // Perna 2: a Emma esta "corrigindo" uma forma que ela mesma sugeriu e que o aluno
+        // JA APLICOU nesta fala. E o pior caso: o aluno obedeceu e foi corrigido por isso.
+        return Boolean(sugerido) && sugestoesDadas.has(sugerido) && falaAtual.includes(sugerido);
+      });
+    },
+  },
+  {
+    id: "L4",
+    name: "next_action coerente com a etapa",
+    criterion: "a conversa avanca quando deve avancar",
+    check: (turno) => {
+      const aceitos = turno.espera?.next_action ?? [];
+      if (aceitos.length === 0) return null;
+      return aceitos.includes(turno.resposta?.next_action);
+    },
+  },
+  {
+    id: "L5",
+    name: "missao fecha (ou nao fecha) onde deve",
+    criterion: "sem complete_mission o fecho de licao nunca dispara",
+    check: (turno, contexto) => {
+      // Conversa livre nao tem objetivo a cumprir: fechar missao ali e inventar um fim.
+      if (!contexto.conversa.fecha_missao) {
+        return turno.resposta?.next_action !== "complete_mission";
+      }
+      if (!contexto.ultimo) return null;
+      return turno.resposta?.next_action === "complete_mission";
+    },
+  },
+];
+
+// As 13 checagens de turno continuam valendo DENTRO da conversa — o que muda e a origem
+// do `record`: em vez do dataset.jsonl, ele vem do proprio turno roteirizado.
+function recordDoTurno(turno, conversa) {
+  const deveCorrigir = turno.espera?.deve_corrigir ?? [];
+  return {
+    id: `${conversa.id}-t${turno.n}`,
+    aluno: turno.aluno,
+    nivel_esperado: conversa.nivel,
+    deve_corrigir: deveCorrigir,
+    nao_deve_corrigir: turno.espera?.nao_deve_corrigir ?? [],
+    tipo_erro: deveCorrigir.length > 0 ? "esperado" : "nenhum",
+  };
+}
+
+function evaluateConversationTurn(turno, contexto) {
+  const result = {};
+  for (const check of LONGITUDINAL_CHECKS) {
+    try {
+      result[check.id] = check.check(turno, contexto);
+    } catch {
+      result[check.id] = false;
+    }
+  }
+  return result;
+}
+
+function evaluateConversation(conversa) {
+  const turnos = conversa.turnos ?? [];
+  return turnos.map((turno, indice) => {
+    const contexto = {
+      conversa,
+      anteriores: turnos.slice(0, indice),
+      // "Ultimo turno GRAVADO" nao e "ultimo turno da conversa": numa conversa interrompida
+      // por falha de contrato, o ultimo gravado e apenas onde a rodada parou. Exigir
+      // `complete_mission` ali reprovaria o modelo por um turno que ele nunca chegou a ter.
+      ultimo: conversa.completa === true && indice === turnos.length - 1,
+    };
+    return {
+      turno,
+      turnChecks: evaluateTurn(turno.resposta ?? {}, recordDoTurno(turno, conversa)),
+      longChecks: evaluateConversationTurn(turno, contexto),
+    };
+  });
+}
+
 function loadDataset() {
   const records = new Map();
   const lines = fs.readFileSync(DATASET_PATH, "utf8").split(/\r?\n/).filter(Boolean);
@@ -427,6 +620,173 @@ function buildMatrizTestCases() {
   ];
 }
 
+// Casos das checagens longitudinais. Cada um e um PAR: a violacao tem de reprovar e o
+// caso legitimo vizinho tem de passar. Sem o par, L1 vira alarme de qualquer pergunta
+// parecida e L3 impede a Emma de corrigir um erro que o aluno REPETIU — as duas coisas
+// seriam piores que nao medir nada.
+function turnoFake(n, aluno, resposta, espera = {}) {
+  return { n, aluno, espera, resposta };
+}
+
+function buildConversaTestCases() {
+  const conversaMissao = { id: "fake", fecha_missao: true };
+  const conversaLivre = { id: "fake-livre", fecha_missao: false };
+  return [
+    {
+      name: "L1 acusa a mesma pergunta reformulada",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "Nice. What size would you like?" })],
+      turno: turnoFake(2, "A small one.", { reply_en: "Got it. Which size do you want?" }),
+      expected: { L1: false },
+    },
+    {
+      name: "L1 silencia em pergunta nova sobre outro assunto",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "Nice. What size would you like?" })],
+      turno: turnoFake(2, "A small one.", { reply_en: "Got it. Anything else with that?" }),
+      expected: { L1: true },
+    },
+    {
+      name: "L2 acusa pedido de dado ja fornecido",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "Hello?" })],
+      turno: turnoFake(
+        2,
+        "A small one.",
+        { reply_en: "Sure. What size would you like?" },
+        {
+          nao_pedir: ["what size"],
+        },
+      ),
+      expected: { L2: false },
+    },
+    {
+      name: "L2 silencia quando o padrao proibido nao aparece",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "Hello?" })],
+      turno: turnoFake(
+        2,
+        "A small one.",
+        { reply_en: "Small it is. Anything else?" },
+        {
+          nao_pedir: ["what size"],
+        },
+      ),
+      expected: { L2: true },
+    },
+    {
+      name: "L3 acusa correcao cujo trecho ja foi corrigido",
+      conversa: conversaMissao,
+      anteriores: [
+        turnoFake(1, "I want a coffee", {
+          corrections: [{ original: "I want", suggested: "I'd like", category: "register" }],
+        }),
+      ],
+      turno: turnoFake(
+        2,
+        "I'd like a coffee, please.",
+        { corrections: [{ original: "I want", suggested: "I'd like", category: "register" }] },
+        { nao_corrigir_de_novo: true },
+      ),
+      expected: { L3: false },
+    },
+    {
+      name: "L3 acusa correcao da forma que o aluno acabou de aplicar",
+      conversa: conversaMissao,
+      anteriores: [
+        turnoFake(1, "I want a coffee", {
+          corrections: [{ original: "I want", suggested: "I'd like", category: "register" }],
+        }),
+      ],
+      turno: turnoFake(
+        2,
+        "I'd like a coffee, please.",
+        { corrections: [{ original: "I'd like", suggested: "I'd like", category: "register" }] },
+        { nao_corrigir_de_novo: true },
+      ),
+      expected: { L3: false },
+    },
+    {
+      name: "L3 SILENCIA quando o aluno repete o mesmo erro — corrigir de novo e legitimo",
+      conversa: conversaMissao,
+      anteriores: [
+        turnoFake(1, "I want a coffee", {
+          corrections: [{ original: "I want", suggested: "I'd like", category: "register" }],
+        }),
+      ],
+      turno: turnoFake(
+        2,
+        "I want a large one",
+        {
+          corrections: [
+            { original: "I want a large", suggested: "I'd like a large", category: "register" },
+          ],
+        },
+        { nao_corrigir_de_novo: true },
+      ),
+      expected: { L3: true },
+    },
+    {
+      name: "L4 acusa next_action fora do esperado para a etapa",
+      conversa: conversaMissao,
+      anteriores: [],
+      turno: turnoFake(
+        1,
+        "By card, please.",
+        { next_action: "retry" },
+        {
+          next_action: ["complete_mission", "continue_mission"],
+        },
+      ),
+      expected: { L4: false },
+    },
+    {
+      name: "L4 aceita qualquer valor da lista da etapa",
+      conversa: conversaMissao,
+      anteriores: [],
+      turno: turnoFake(
+        1,
+        "By card, please.",
+        { next_action: "continue_mission" },
+        {
+          next_action: ["complete_mission", "continue_mission"],
+        },
+      ),
+      expected: { L4: true },
+    },
+    {
+      name: "L5 acusa missao que nao fecha no ultimo turno",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "x?" })],
+      turno: turnoFake(2, "By card, please.", { next_action: "continue_mission" }),
+      ultimo: true,
+      expected: { L5: false },
+    },
+    {
+      name: "L5 aceita complete_mission no ultimo turno",
+      conversa: conversaMissao,
+      anteriores: [turnoFake(1, "a", { reply_en: "x?" })],
+      turno: turnoFake(2, "By card, please.", { next_action: "complete_mission" }),
+      ultimo: true,
+      expected: { L5: true },
+    },
+    {
+      name: "L5 acusa complete_mission em conversa livre — nao ha missao a cumprir",
+      conversa: conversaLivre,
+      anteriores: [],
+      turno: turnoFake(1, "Thank you.", { next_action: "complete_mission" }),
+      expected: { L5: false },
+    },
+    {
+      name: "L5 silencia em conversa livre que segue conversando",
+      conversa: conversaLivre,
+      anteriores: [],
+      turno: turnoFake(1, "Thank you.", { next_action: "reply" }),
+      expected: { L5: true },
+    },
+  ];
+}
+
 function runSelfTest() {
   const cases = buildSelfTestCases();
   let failures = 0;
@@ -538,8 +898,52 @@ function runSelfTest() {
     }
   }
 
+  const conversaCases = buildConversaTestCases();
+  for (const testCase of conversaCases) {
+    const contexto = {
+      conversa: testCase.conversa,
+      anteriores: testCase.anteriores,
+      ultimo: testCase.ultimo === true,
+    };
+    const actual = evaluateConversationTurn(testCase.turno, contexto);
+    for (const [checkId, expected] of Object.entries(testCase.expected)) {
+      if (actual[checkId] === expected) continue;
+      failures += 1;
+      console.log(
+        `FALHA ${testCase.name} · ${checkId}: esperado ${expected}, obtido ${actual[checkId]}`,
+      );
+    }
+  }
+
+  // Este caso passa pelo evaluateConversation INTEIRO, e nao pelo contexto injetado a mao:
+  // e a montagem do contexto que decide quem e o "ultimo" turno, e era exatamente ali que
+  // L5 reprovava uma conversa apenas INTERROMPIDA por falha de contrato.
+  const incompleta = {
+    id: "fake-incompleta",
+    fecha_missao: true,
+    completa: false,
+    nivel: 2,
+    turnos: [
+      turnoFake(1, "a", { reply_en: "Hi?", next_action: "reply" }),
+      turnoFake(2, "b", { reply_en: "And then?", next_action: "continue_mission" }),
+    ],
+  };
+  const l5Incompleta = evaluateConversation(incompleta).at(-1).longChecks.L5;
+  if (l5Incompleta !== null) {
+    failures += 1;
+    console.log(
+      `FALHA L5 nao julga fecho de conversa INCOMPLETA: esperado null, obtido ${l5Incompleta}`,
+    );
+  }
+  const completa = { ...incompleta, id: "fake-completa", completa: true };
+  const l5Completa = evaluateConversation(completa).at(-1).longChecks.L5;
+  if (l5Completa !== false) {
+    failures += 1;
+    console.log(`FALHA L5 julga fecho de conversa COMPLETA: esperado false, obtido ${l5Completa}`);
+  }
+
   console.log(
-    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho + ${geracaoCases.length} de classificacao de geracao · ${CHECKS.length} checagens · ${failures} falha(s)`,
+    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho + ${geracaoCases.length} de classificacao de geracao + ${conversaCases.length + 2} longitudinais · ${CHECKS.length} checagens de turno + ${LONGITUDINAL_CHECKS.length} longitudinais · ${failures} falha(s)`,
   );
   if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
   process.exit(failures > 0 ? 1 : 0);
@@ -560,8 +964,10 @@ function findEvidenceTargets() {
       // nao se misturarem numa media que nao significa nada.
       const entradas = fs.readdirSync(modelDir).filter((name) => !name.startsWith("_"));
       const temJsonSolto = entradas.some((name) => name.endsWith(".json"));
-      const subgrupos = entradas.filter((name) =>
-        fs.statSync(path.join(modelDir, name)).isDirectory(),
+      // `conversas/` guarda uma conversa inteira por arquivo, nao um turno: lida por aqui
+      // viraria "unreadable" e sujaria a contagem. Ela tem caminho proprio (--conversas).
+      const subgrupos = entradas.filter(
+        (name) => name !== "conversas" && fs.statSync(path.join(modelDir, name)).isDirectory(),
       );
       if (temJsonSolto) targets.push({ model, modelDir });
       for (const grupo of subgrupos) {
@@ -1295,8 +1701,107 @@ function carregarCelulasSeExistir() {
   }
 }
 
+function findConversationFiles() {
+  const activeDir = path.join(PROJECT_ROOT, "docs", "active");
+  if (!fs.existsSync(activeDir)) return [];
+  const arquivos = [];
+  for (const spec of fs.readdirSync(activeDir).filter((name) => name.startsWith("SPEC-"))) {
+    const evidenceDir = path.join(activeDir, spec, "evidence");
+    if (!fs.existsSync(evidenceDir)) continue;
+    for (const model of fs.readdirSync(evidenceDir).filter((name) => !name.startsWith("_"))) {
+      const grupoDir = path.join(evidenceDir, model, "conversas");
+      if (!fs.existsSync(grupoDir)) continue;
+      for (const file of fs.readdirSync(grupoDir).filter((name) => name.endsWith(".json"))) {
+        arquivos.push({ model, filePath: path.join(grupoDir, file) });
+      }
+    }
+  }
+  return arquivos;
+}
+
+function marcaDe(valor) {
+  if (valor === null || valor === undefined) return "  ";
+  return valor ? "ok" : "XX";
+}
+
+// O relatorio de conversa NAO e tabela por decisao do contrato: uma conversa so revela
+// incoerencia quando lida em sequencia. A tabela entra no fim, como resumo do que ja foi
+// lido — nunca como substituta da leitura.
+function relatorioConversas() {
+  const arquivos = findConversationFiles();
+  if (arquivos.length === 0) {
+    console.log("nenhuma evidencia de conversa em docs/active/*/evidence/*/conversas/");
+    process.exit(1);
+  }
+
+  const totais = {};
+  let turnosLidos = 0;
+  let incompletas = 0;
+
+  for (const { model, filePath } of arquivos) {
+    const conversa = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const avaliacoes = evaluateConversation(conversa);
+    const estado = conversa.completa ? "completa" : "INCOMPLETA";
+    if (!conversa.completa) incompletas += 1;
+
+    console.log(`\n${"=".repeat(78)}`);
+    console.log(
+      `${conversa.id} · ${model} · missao ${conversa.missao} · nivel ${conversa.nivel} · tom ${conversa.tom} · prompt ${conversa.prompt_version} · ${estado}`,
+    );
+    console.log("=".repeat(78));
+
+    for (const { turno, turnChecks, longChecks } of avaliacoes) {
+      turnosLidos += 1;
+      const resposta = turno.resposta ?? {};
+      console.log(`\n[t${turno.n}] aluno: ${turno.aluno}`);
+      console.log(`      emma : ${resposta.reply_en ?? "—"}`);
+      if (resposta.instruction_pt) console.log(`      guia : ${resposta.instruction_pt}`);
+      for (const c of resposta.corrections ?? []) {
+        console.log(
+          `      corr : "${c.original}" -> "${c.suggested}" (${c.category}) · ${c.explanation_pt}`,
+        );
+      }
+      console.log(
+        `      next : ${resposta.next_action ?? "—"}  (esperado: ${(turno.espera?.next_action ?? []).join("|") || "—"})`,
+      );
+
+      const falhas = [];
+      for (const check of [...LONGITUDINAL_CHECKS, ...CHECKS]) {
+        const valor = longChecks[check.id] ?? turnChecks[check.id];
+        if (valor === null || valor === undefined) continue;
+        totais[check.id] ??= { passed: 0, total: 0 };
+        totais[check.id].total += 1;
+        if (valor) totais[check.id].passed += 1;
+        else falhas.push(`${check.id} ${check.name}`);
+      }
+      if (falhas.length > 0) console.log(`      FALHA: ${falhas.join(" · ")}`);
+      if (turno.espera?.nota) console.log(`      nota : ${turno.espera.nota}`);
+    }
+  }
+
+  console.log(`\n${"=".repeat(78)}`);
+  console.log("resumo mecanico (a leitura acima e que decide se soa como conversa)");
+  console.log("=".repeat(78));
+  for (const check of [...LONGITUDINAL_CHECKS, ...CHECKS]) {
+    const t = totais[check.id];
+    if (!t) continue;
+    const pct = t.total === 0 ? "—" : `${Math.round((t.passed / t.total) * 100)}%`;
+    console.log(
+      `${check.id.padEnd(4)} ${String(t.passed + "/" + t.total).padEnd(8)} ${pct.padEnd(5)} ${check.name}`,
+    );
+  }
+  console.log(
+    `\nconversas: ${arquivos.length} · turnos: ${turnosLidos} · incompletas: ${incompletas}`,
+  );
+  console.log(
+    "O VEREDITO E HUMANO: nenhuma destas checagens sabe se a conversa soa como conversa.",
+  );
+  process.exit(incompletas > 0 ? 1 : 0);
+}
+
 const argv = process.argv;
-if (argv.includes("--self-test")) runSelfTest();
+if (argv.includes("--conversas")) relatorioConversas();
+else if (argv.includes("--self-test")) runSelfTest();
 else if (argv.includes("--matriz")) {
   if (argv.includes("--assert-completo")) assertCompleto();
   else if (argv.includes("--assert-invariancia")) assertInvariancia();

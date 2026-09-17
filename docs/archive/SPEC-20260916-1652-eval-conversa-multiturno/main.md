@@ -1,16 +1,16 @@
 # SPEC-20260916-1652: Eval de conversa multiturno — coerência e avanço de missão
 
-**Status:** draft
+**Status:** done
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
-**Ativada:** —
-**Concluída:** —
+**Ativada:** 2026-09-16 20:59
+**Concluída:** 2026-09-16 23:05
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `b79713f`
 **Keywords:** multiturno, coerencia, missao, next-action, contexto
 **Features:** dialogo
-**Branch:** —
+**Branch:** feature/eval-conversa-multiturno
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 16:52
@@ -89,9 +89,9 @@ entre prompts possível — é o mesmo motivo pelo qual o dataset de falas é ve
 
 ## Critério de aceite
 
-- [ ] `conversations.jsonl` cobre as 3 missões do protótipo e uma conversa livre, com a fala do aluno versionada
-- [ ] Runner executa conversa com histórico acumulado e persiste a conversa inteira como evidência
-- [ ] Nenhuma conversa tem pergunta repetida nem pedido de dado que o aluno já forneceu
-- [ ] Nenhuma correção se repete depois de já ter sido aplicada
-- [ ] `next_action` coerente com a etapa em todas as conversas, e a missão fecha em `complete_mission`
-- [ ] Leitura humana confirma que as conversas soam como conversa e não como sequência de exercícios | evidence: manual @allan
+- [x] `conversations.jsonl` cobre as 3 missões do protótipo e uma conversa livre, com a fala do aluno versionada (2026-09-16 22:29, commit `b79713f`)
+- [x] Runner executa conversa com histórico acumulado e persiste a conversa inteira como evidência (2026-09-16 22:29, commit `b79713f`)
+- [ ] Nenhuma conversa tem pergunta repetida nem pedido de dado que o aluno já forneceu [aceito-incompleto: "SPEC nova para corrigir o produto" 2026-09-16 22:52]
+- [ ] Nenhuma correção se repete depois de já ter sido aplicada [aceito-incompleto: "Aceitar gap com L3 3/3 parcial" 2026-09-16 23:01]
+- [ ] `next_action` coerente com a etapa em todas as conversas, e a missão fecha em `complete_mission` [aceito-incompleto: "SPEC nova sobre semântica de next_action" 2026-09-16 22:52]
+- [x] Leitura humana confirma que as conversas soam como conversa e não como sequência de exercícios | evidence: manual @allan (2026-09-16 22:57, commit `b79713f`, evidence: leitura humana @allan em 2026-09-16 22:52 — "Já li — aprovado")

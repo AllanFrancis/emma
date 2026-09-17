@@ -9,6 +9,7 @@ const PROJECT_ROOT = path.resolve(CURRENT_DIR, "..", "..");
 const DATASET_PATH = path.join(CURRENT_DIR, "dataset.jsonl");
 const SCHEMA_PATH = path.join(CURRENT_DIR, "turn-schema.json");
 const MATRIZ_PATH = path.join(CURRENT_DIR, "matriz.json");
+const CONVERSATIONS_PATH = path.join(CURRENT_DIR, "conversations.jsonl");
 // Versao do prompt de sistema, gravada em cada evidencia. Sem isso, comparar duas
 // rodadas exige diff do payload inteiro para descobrir qual prompt produziu o que.
 const PROMPT_VERSION = "v5";
@@ -46,6 +47,8 @@ function parseArguments() {
     tone: getValue("--tom", "tranquila"),
     matriz: argumentsList.includes("--matriz"),
     compararPrompt: argumentsList.includes("--comparar-prompt"),
+    conversa: argumentsList.includes("--conversa"),
+    conversaId: getValue("--conversa-id", null),
   };
 }
 
@@ -390,10 +393,192 @@ async function runRequests(records, schema, options) {
   console.log(`evidencias em: ${path.relative(PROJECT_ROOT, evidenceDir)}`);
 }
 
+function loadConversations() {
+  return fs
+    .readFileSync(CONVERSATIONS_PATH, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== "")
+    .map((line) => JSON.parse(line));
+}
+
+// A conversa e a unidade de evidencia, mas NAO a unidade de retomada: com historico
+// acumulado o custo cresce a cada turno, e perder uma conversa de 5 turnos por um rate
+// limit no ultimo turno significa repagar os quatro anteriores. Por isso o arquivo e
+// gravado a cada turno com `completa: false` e a retomada reconstroi `messages` a partir
+// das respostas ja gravadas.
+function conversationEvidencePath(evidenceDir, conversation) {
+  return path.join(evidenceDir, `${conversation.id}.json`);
+}
+
+function loadPartialConversation(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+// Reconstroi o historico no formato da API a partir dos turnos ja gravados. A fala da
+// Emma volta como o JSON literal que ela emitiu — e o que o produto tambem faria, e e o
+// unico jeito de o modelo enxergar as proprias correcoes anteriores.
+function rebuildMessages(systemPrompt, turnosGravados) {
+  const messages = [{ role: "system", content: systemPrompt }];
+  for (const turno of turnosGravados) {
+    messages.push({ role: "user", content: turno.aluno });
+    messages.push({ role: "assistant", content: JSON.stringify(turno.resposta) });
+  }
+  return messages;
+}
+
+function buildConversationSystemPrompt(conversation, tone) {
+  const scenario = SCENARIOS[conversation.contexto];
+  if (!scenario) {
+    throw new Error(
+      `contexto '${conversation.contexto}' (${conversation.id}) sem cenario correspondente`,
+    );
+  }
+  return buildSystemPrompt({ level: conversation.nivel, scenario, tone });
+}
+
+async function processConversation({ conversation, schema, model, tone, apiKey, evidenceDir }) {
+  const filePath = conversationEvidencePath(evidenceDir, conversation);
+  const systemPrompt = buildConversationSystemPrompt(conversation, tone);
+  const anterior = loadPartialConversation(filePath);
+  if (anterior?.completa) return { status: "skipped", turnos: anterior.turnos.length };
+
+  const turnos = anterior?.turnos ?? [];
+  if (turnos.length > 0) {
+    console.log(`  retomando ${conversation.id} a partir do turno ${turnos.length + 1}`);
+  }
+
+  const evidence = {
+    id: conversation.id,
+    missao: conversation.missao,
+    contexto: conversation.contexto,
+    nivel: conversation.nivel,
+    fecha_missao: conversation.fecha_missao,
+    modelo: model,
+    tom: tone,
+    prompt_version: PROMPT_VERSION,
+    executado_em: anterior?.executado_em ?? new Date().toISOString(),
+    system_prompt: systemPrompt,
+    completa: false,
+    turnos,
+  };
+
+  for (const turno of conversation.turnos.slice(turnos.length)) {
+    const messages = rebuildMessages(systemPrompt, turnos);
+    messages.push({ role: "user", content: turno.aluno });
+    const payload = {
+      model,
+      messages,
+      response_format: { type: "json_schema", json_schema: schema },
+    };
+
+    let result;
+    for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa += 1) {
+      result = await callModel(payload, apiKey);
+      if (result.error !== "rate_limit") break;
+      if (tentativa === MAX_TENTATIVAS) break;
+      const espera = Math.max(result.retryAfter, ESPERA_MINIMA) * tentativa;
+      console.log(
+        `  rate limit em ${conversation.id} t${turno.n} (tentativa ${tentativa}/${MAX_TENTATIVAS}) — aguardando ${espera}s, turnos anteriores preservados`,
+      );
+      await wait(espera);
+    }
+
+    if (result.error) {
+      evidence.erro = { turno: turno.n, ...result };
+      fs.writeFileSync(filePath, JSON.stringify(evidence, null, 2));
+      console.log(`FALHA ${conversation.id} t${turno.n}: ${result.error} · parcial preservada`);
+      return { status: "failed", stop: result.error !== "rate_limit", turnos: turnos.length };
+    }
+
+    const conteudo = result.data?.choices?.[0]?.message?.content ?? "";
+    let resposta;
+    try {
+      resposta = JSON.parse(conteudo);
+    } catch {
+      evidence.erro = { turno: turno.n, error: "json_invalido", conteudo };
+      fs.writeFileSync(filePath, JSON.stringify(evidence, null, 2));
+      console.log(`FALHA ${conversation.id} t${turno.n}: resposta nao e JSON · parcial preservada`);
+      return { status: "failed", stop: true, turnos: turnos.length };
+    }
+
+    turnos.push({
+      n: turno.n,
+      aluno: turno.aluno,
+      espera: turno.espera,
+      // O historico ENVIADO neste turno, nao o reconstruido depois: e o que permite
+      // auditar o que o modelo tinha em maos quando repetiu uma pergunta.
+      mensagens_enviadas: messages,
+      resposta,
+      usage: result.data?.usage ?? null,
+    });
+    fs.writeFileSync(filePath, JSON.stringify(evidence, null, 2));
+    console.log(
+      `ok ${conversation.id} t${turno.n} · ${resposta.next_action}` +
+        `${result.limits.remainingTokens ? ` · tokens restantes: ${result.limits.remainingTokens}` : ""}`,
+    );
+    await throttleByTokenBudget(result.limits);
+  }
+
+  evidence.completa = true;
+  fs.writeFileSync(filePath, JSON.stringify(evidence, null, 2));
+  return { status: "saved", turnos: turnos.length };
+}
+
+async function runConversas(schema, options) {
+  const todas = loadConversations();
+  const conversas = options.conversaId ? todas.filter((c) => c.id === options.conversaId) : todas;
+  if (conversas.length === 0) {
+    throw new Error(`conversa '${options.conversaId}' nao existe em conversations.jsonl`);
+  }
+  const evidenceDir = getGroupDir(options.model, "conversas");
+
+  if (options.dryRun) {
+    console.log("DRY RUN — nenhuma chamada de API, nenhuma cota gasta");
+    let chamadas = 0;
+    for (const conversa of conversas) {
+      buildConversationSystemPrompt(conversa, options.tone);
+      chamadas += conversa.turnos.length;
+      console.log(
+        `  ${conversa.id.padEnd(15)} missao=${conversa.missao.padEnd(11)} n${conversa.nivel} · ${conversa.turnos.length} turnos · fecha_missao=${conversa.fecha_missao}`,
+      );
+    }
+    console.log(
+      `\nconversas: ${conversas.length} · chamadas: ${chamadas} · prompt ${PROMPT_VERSION} · tom ${options.tone}`,
+    );
+    console.log(
+      `custo cresce por turno (historico acumulado): estimativa ${chamadas * TOKENS_POR_TURNO}+ tokens`,
+    );
+    console.log("\ndry: ok");
+    return;
+  }
+
+  const apiKey = requireApiKey();
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  const totals = { saved: 0, skipped: 0, failed: 0 };
+  for (const conversa of conversas) {
+    const result = await processConversation({
+      conversation: conversa,
+      schema,
+      model: options.model,
+      tone: options.tone,
+      apiKey,
+      evidenceDir,
+    });
+    totals[result.status] += 1;
+    if (result.stop) break;
+  }
+  console.log(
+    `\nconversas: ${totals.saved} gravadas · ${totals.skipped} puladas · ${totals.failed} falhas`,
+  );
+  console.log(`evidencias em: ${path.relative(PROJECT_ROOT, evidenceDir)}`);
+}
+
 async function main() {
   const options = parseArguments();
   const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
   const dataset = loadDataset();
+  if (options.conversa) return runConversas(schema, options);
   if (options.matriz) return runMatriz(schema, dataset, options);
   if (options.compararPrompt) return runCompararPrompt(schema, dataset, options);
   const records = options.limit ? dataset.slice(0, options.limit) : dataset;

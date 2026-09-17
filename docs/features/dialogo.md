@@ -13,11 +13,11 @@
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1450 | 2026-09-16 | `01c70a4` | Contrato do turno v2 — corrections[] estruturado
 - SPEC-20260916-1652 | 2026-09-16 | `e4ecf53` | Eval de personalidade — matriz tom × nível e comparação controlada v4 × v5
+- SPEC-20260916-1652-eval-conversa-multiturno | 2026-09-16 | `pendente` | Eval de conversa multiturno — coerência longitudinal e avanço de missão
 ### Planejadas (future/)
 - SPEC-20260916-2048-semantica-next-action | Semântica de next_action | Correção emitida sem pedir aplicação não é medida por nenhuma checagem
 - SPEC-20260916-2048-regra-fala-transcrita | Regra da fala transcrita | Instrução no prompt não impediu a violação da DEC-20260916-0312
 - SPEC-20260916-2048-metodologia-de-eval | Metodologia de eval | Sem controle de parâmetros, diferença isolada não é atribuível ao prompt
-- SPEC-20260916-1652-eval-conversa-multiturno | Eval de conversa multiturno | Mede coerência longitudinal, que turno isolado não mede
 - SPEC-20260916-1652-motor-de-dialogo | Motor de diálogo — server function, strict JSON e fallback | Tira a chave do cliente e garante que um turno nunca morre na tela
 - SPEC-20260916-1652-conversa-e-missoes | Conversa e missões — a tela que é o produto | Traz o catálogo de missões de volta ao domínio
 
@@ -107,6 +107,36 @@ Lacuna de medição aberta: `hotel-10` mudou `next_action` de `retry` para `repl
 correção. Nenhuma das 13 checagens mede isso — C12 só olha casos de controle. Vai para a
 SPEC-20260916-2048-semantica-next-action.
 
+
+### Delta de estado (SPEC-20260916-1652-eval-conversa-multiturno, 2026-09-16 23:05)
+
+Existe pela primeira vez medição LONGITUDINAL: `conversations.jsonl` (4 conversas, 19 turnos
+roteirizados), `run.mjs --conversa` com histórico acumulado, e 5 checagens novas no grade.mjs —
+L1 pergunta repetida, L2 dado já fornecido, L3 correção repetida, L4 next_action coerente com a
+etapa, L5 missão fecha onde deve. As 13 checagens de turno passam a valer DENTRO da conversa
+derivando o record do turno roteirizado.
+
+O gotcha "turno isolado não mede coerência longitudinal" deixa de ser ressalva e vira medição —
+e a medição REPROVOU o produto. Com 9 dos 19 turnos (a rodada travou no rate limit de janela
+longa):
+
+    L1 5/6 · L2 7/7 · L3 3/3 · L4 7/9 · L5 0/1
+
+O achado central: em `conv-cafe-01` a Emma emitiu `complete_mission` logo após "No, that´s all,
+thank you" — declarando a missão do café cumprida com o pagamento ainda por fazer, duas etapas
+antes do fim do roteiro. Isso CONFIRMA a DEC-20260916-1612 pela evidência e não mais por
+princípio: `next_action` não serve como decisão, só como proposta, e o núcleo pedagógico terá de
+confrontá-la com a etapa real da missão.
+
+Segundo achado: a omissão que reprovou o v4 reaparece em conversa. No t1 de `conv-cafe-01`, com
+"I want a coffee", a forma correta foi para `instruction_pt` em vez de `corrections` (C5 2/4).
+Turno isolado com a MESMA fala (cafe-02) passava depois do v5 — o contexto de conversa
+reintroduz a falha.
+
+Lacunas que saíram daqui como SPEC: retenção de contexto (SPEC-20260916-2257, nova) e semântica
+de next_action (SPEC-20260916-2048, já existente). A rodada completa das 4 conversas ficou por
+fazer: `conv-talk-01` e `conv-livre-01` nunca rodaram.
+
 ## Decisões arquiteturais ativas
 - DEC-20260916-2052-prompt-v5 [ativa] (SPEC-20260916-1652) — prompt v5 mantido: precedência da via (b) sobre a (c) e `explanation_pt` amarrada ao português. Base: 5 melhoras, 0 regressões em comparação controlada nas 7 falas que falhavam no v4.
 - DEC-20260916-0310-modelo-dialogo [ativa] (SPEC-20260916-0109) — usar `openai/gpt-oss-20b` na Fase 1; prioriza tato e confiabilidade sobre a maior taxa de correção do 120b.
@@ -125,6 +155,10 @@ SPEC-20260916-2048-semantica-next-action.
 - SPEC-20260916-1450 | rodízio das 6 chaves de API para ampliar cota — rejeitada em 2026-09-16 16:12. Reafirma a decisão do usuário de conta única; os limites são por organização, então o rodízio não rende cota.
 
 ## Gotchas
+- SPEC-20260916-1652-eval-conversa-multiturno | teste que injeta contexto pronto não cobre o código que MONTA o contexto (2026-09-16 22:45) — 13 casos de self-test longitudinais passavam e mesmo assim L5 tratava o último turno GRAVADO como último da CONVERSA, reprovando conversa apenas interrompida. Todos injetavam o contexto já montado; o defeito estava na montagem. Só um teste que exercita a função de montagem inteira o pega.
+- SPEC-20260916-1652-eval-conversa-multiturno | Jaccard sobre tokens brutos não detecta pergunta reformulada (2026-09-16 21:07) — "What size would you like?" x "Which size do you want?" dá 0.25 e passa batido; comparando só palavras de CONTEÚDO (stopwords, auxiliares e verbos de pedido como like/want/need/get fora) o mesmo par dá 1.0. Quem for endurecer a checagem de repetição precisa saber que o limiar age sobre conteúdo, não sobre a frase.
+- SPEC-20260916-1652-eval-conversa-multiturno | custo por turno DOBRA com histórico acumulado (2026-09-16 23:00) — 2.100 a 2.900 tokens por turno em conversa, contra ~1.100 no turno isolado. Planejar rodada multiturno pela métrica do turno isolado subestima pela metade: 9 turnos consumiram 20.681 tokens e a rodada travou em 9/19 no rate limit de janela longa.
+- SPEC-20260916-1652-eval-conversa-multiturno | `json_validate_failed` é INTERMITENTE, não determinístico (2026-09-16 21:30) — o mesmo turno falhou 2x seguidas e passou na 3a. Reexecutar é retry manual válido; com gravação parcial por turno, nenhum turno já pago é refeito. Complementa o gotcha de `strict: true` no 20b: a falha não é do turno, é da tentativa.
 - SPEC-20260916-0109 | `strict: true` não garante resposta utilizável (2026-09-16 01:55) — o Groq pode devolver HTTP 400 `json_validate_failed`; mantenha fallback explícito.
 - SPEC-20260916-0109 | limites do Groq são compartilhados pela organização (2026-09-16 02:09) — paralelizar chamadas ou alternar chaves da mesma conta não amplia a cota. (citado por: SPEC-20260916-1450)
 - SPEC-20260916-1450 | o teto do tier gratuito é de TOKENS por minuto, não de requisições (2026-09-16 16:13) — a rodada morre com `remainingRequests` em 995 e `remainingTokens` em 1207. A ~1065 tokens por turno a janela permite 1 ou 2 turnos; o `retry-after` do Groq vem em 2-5s, curto demais para refilar. Use backoff com espera mínima de 20s e pause pelo header `x-ratelimit-remaining-tokens`.
