@@ -45,6 +45,8 @@ déficits que a rodada do contrato v2 expôs, porque ambos são de calibração 
 - NUNCA o tom "direta" corrige MAIS itens que o "tranquila" — mais correções não é mais rigor, é outra pedagogia.
 - NUNCA afirmar ganho de prompt sem mostrar as duas rodadas lado a lado sobre o mesmo dataset.
 - NUNCA commitar chave de API — `GROQ_API_KEY` vive em variável de ambiente da sessão.
+- SEMPRE separar VALIDADE FINAL DO CONTRATO de CONFIABILIDADE DA GERAÇÃO. Falha recuperada não reprova o contrato, e nunca é apagada da contagem: `valid_first_attempt`, `recovered_after_retry` e `unrecovered_contract_failure` são reportados juntos, para que "o desenho passou" e "houve 1 falha de geração" possam ser ditos na mesma frase.
+- NUNCA confundir rate limit ou erro de infraestrutura com falha semântica do modelo; são dimensões distintas e contadas à parte.
 
 ## Implementação
 
@@ -60,6 +62,22 @@ comparar as células entre si em vez de agregar tudo numa média.
 **Por que a invariância é asserção e não relatório.** Se `corrections[].suggested` diferir entre
 tons, o produto tem duas pedagogias e não duas personalidades — é o modo de falha que a §3 e a §6
 existem para impedir. Um número num relatório se justifica; uma asserção que falha, não.
+
+**Classificação de falha de geração (decisão do usuário em 2026-09-16 20:43).** O gate separa duas
+dimensões que estavam colapsadas. A tabela abaixo é a semântica exigida, e cada linha tem caso de
+teste correspondente:
+
+| situação | validade do contrato | métrica de confiabilidade |
+|---|---|---|
+| resposta válida na 1ª tentativa | PASS | `valid_first_attempt` |
+| `json_validate_failed` + tentativa posterior válida | **PASS** | `recovered_after_retry` |
+| retries esgotados sem resposta válida | FAIL | `unrecovered_contract_failure` |
+| erro de contrato não recuperável | FAIL | `unrecovered_contract_failure` |
+| rate limit / infraestrutura | não afeta | contado à parte, nunca como falha semântica |
+
+A base é a DEC-20260916-0311, que já prevê retry e fallback para `json_validate_failed` — a regra
+aplica essa decisão ao gate, em vez de abrir exceção para acomodar um resultado. Falha recuperada
+**não é apagada**: ela aparece no relatório do gate junto com o PASS.
 
 ### Modelo de dados
 
@@ -95,6 +113,7 @@ existem para impedir. Um número num relatório se justifica; uma asserção que
 - [ ] Invariância pedagógica: `corrections[].suggested`, `category` e `focus` idênticos nas 4 células da mesma fala | verify: `node scripts/eval/grade.mjs --matriz --assert-invariancia`
 - [x] Diferença de estilo: `reply_en` e `explanation_pt` mensuravelmente distintos entre tranquila e direta (2026-09-16 17:52, commit `0e870ef`, verify: exit 0) | verify: `node scripts/eval/grade.mjs --matriz --assert-diferenca`
 - [ ] Nenhum tom corrige mais itens que o outro para a mesma fala e o mesmo nível | verify: `node scripts/eval/grade.mjs --matriz --assert-teto`
-- [ ] As 13 checagens do contrato v2 seguem verdes sobre as saídas da matriz — a matriz não pode ter regredido o que a SPEC-20260916-1450 conquistou | verify: `node scripts/eval/grade.mjs --assert-contract`
+- [ ] O gate classifica falha de geração conforme a decisão de 2026-09-16 20:43: válida na 1ª tentativa PASSA, `json_validate_failed` recuperada PASSA com ocorrência registrada, retries esgotados REPROVA, erro não recuperável REPROVA, e rate limit é contado à parte — com caso de teste para cada linha | verify: `node scripts/eval/grade.mjs --self-test`
+- [ ] As 13 checagens do contrato v2 seguem verdes sobre as saídas da matriz e da comparação, e o gate reporta `valid_first_attempt` / `recovered_after_retry` / `unrecovered_contract_failure` sem apagar nenhuma ocorrência | verify: `node scripts/eval/grade.mjs --assert-contract`
 - [ ] Comparação v4→v5 nas 7 falas que falharam, com as duas evidências lado a lado e o veredito de cada caso | verify: `node scripts/eval/grade.mjs --comparar-prompt`
 - [ ] Leitura humana decide se a troca entre C5 e C4 (se houver) é aceitável, e se os dois tons soam de fato diferentes | evidence: manual @allan

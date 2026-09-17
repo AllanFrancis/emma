@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 20:33
+**Última atualização:** 2026-09-16 20:44
 **Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
 **Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
 **Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
@@ -309,3 +309,66 @@ célula da tabela é n=1 por versão. A coluna de confiança reflete apenas CORR
 não tamanho de efeito. Nenhuma linha isolada sustenta causalidade; o conjunto (5 melhoras, 0
 regressões) sustenta a direção.
 ⎿ commit 7a6e05a+dirty · 1 file changed, 71 insertions(+), 8 deletions(-)
+
+## 2026-09-16 20:44 — [decisão] v5 MANTIDO pelo usuario; regra de classificacao de falha de geracao definida ANTES de mudar o gate: recuperada por retry nao reprova contrato, mas e contabilizada como evento de confiabilidade
+
+DECISÃO DO USUÁRIO em 2026-09-16 20:43, registrada ANTES de qualquer alteração no gate, por
+determinação explícita dele: "Antes de mudar o gate, registre essa regra na SPEC/decisão
+correspondente e adicione testes cobrindo pelo menos esses cenários. Assim a mudança não parece uma
+flexibilização feita depois de vermos o resultado."
+
+1. V5 MANTIDO. Citação: "Com os 7/7 fechados, minha decisão é manter o v5. A comparação controlada
+mostrou 5 melhoras, 2 equivalências e nenhuma regressão confirmada. Portanto, não vejo base para
+reverter para o v4 nem para fazer uma nova alteração no prompt dentro desta SPEC."
+
+2. REGRA DE CLASSIFICAÇÃO DE FALHA DE GERAÇÃO. Citação: "uma falha transitória recuperada pelo
+mecanismo de retry não deve reprovar o contrato final da execução, desde que: 1. o retry esteja
+previsto pelo contrato/DEC; 2. uma tentativa posterior produza resposta válida; 3. a evidência final
+da fala esteja completa; 4. o número máximo de retries não tenha sido excedido. Mas não quero
+esconder essa falha."
+
+O gate passa a separar DUAS dimensões que estavam colapsadas numa só:
+
+- VALIDADE FINAL DO CONTRATO — passa quando houve recuperação válida;
+- CONFIABILIDADE DA GERAÇÃO — registra que houve `json_validate_failed`, quantas tentativas e como
+  se recuperou.
+
+Semântica exigida, na letra do usuário:
+- resposta válida na primeira tentativa -> PASS
+- `json_validate_failed` + retry bem-sucedido -> PASS com ocorrência de recuperação registrada
+- retries esgotados sem resposta válida -> FAIL
+- erro não recuperável de contrato -> FAIL
+- rate limit / infra -> classificado separadamente, sem ser confundido com falha semântica do modelo
+
+Métricas de recuperação, nomeadas pelo usuário: `valid_first_attempt`, `recovered_after_retry`,
+`unrecovered_contract_failure`. O objetivo declarado: "conseguimos dizer simultaneamente que o
+desenho passou e que houve 1 falha de geração recuperada, sem produzir falsa confiança."
+
+FUNDAMENTO NO CONTRATO EXISTENTE: a DEC-20260916-0311 já prevê que `json_validate_failed` recebe
+retry e depois cai em `scriptedTurn()`, e que um turno nunca morre na interface. A regra acima é a
+aplicação dessa decisão ao GATE — não uma exceção criada para acomodar um resultado.
+
+GAP QUE EU PRECISO DECLARAR, porque afeta a condição 1 da regra: o `run.mjs` NÃO implementa retry
+in-process para `json_validate_failed`. Ele classifica o HTTP 400 como erro não-rate-limit e PARA a
+rodada (`stop: true`). A recuperação de `talk-06` aconteceu porque EU re-executei o comando, não
+porque o runner retentou. Ou seja: o retry está previsto pela DEC mas não está implementado no
+runner de eval. A regra do gate continua correta e aplicável — a evidência final de `talk-06` é
+válida e completa —, mas a forma de recuperação foi re-execução manual, e isso fica registrado como
+fato, não como retry automático. Alinhar o runner à DEC-20260916-0311 é trabalho para a SPEC de
+metodologia de eval, não para esta.
+
+TETO DE RETRIES para efeito do gate: o `run.mjs` usa `MAX_TENTATIVAS = 6` para rate limit. Para
+falha de contrato, o gate conta os registros de `_failures` com `code=json_validate_failed` por fala
+e exige que exista evidência bem-sucedida da MESMA fala. Acima do teto sem sucesso = FAIL.
+
+3. PROBLEMAS SEPARADOS EM TRABALHOS PRÓPRIOS, por determinação do usuário, "porque são questões
+diferentes da alteração v4 -> v5": interação tom/pedagogia; semântica de `next_action` (caso
+`hotel-10`); violação da regra de fala transcrita (`livre-02`); divergências pedagógicas reais entre
+tons; metodologia de avaliação com controle de parâmetros.
+
+Vou materializar isso em 4 SPECs future e não 5, porque a "interação aparente entre tom e pedagogia"
+e as "divergências pedagógicas reais entre tons" se respondem com O MESMO experimento — amostragem
+repetida com parâmetros fixos, separando efeito de tom de variância de geração. Criar duas SPECs que
+dependem da mesma rodada produziria um DAG errado e trabalho duplicado. Se o usuário preferir
+quatro itens separados, é ajuste de um nó no manifesto.
+⎿ commit 00600b3

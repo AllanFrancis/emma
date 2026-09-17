@@ -441,6 +441,66 @@ function runSelfTest() {
     }
   }
 
+  // Um caso de teste por linha da tabela de semantica do main.md. Sem eles, a mudanca do
+  // gate seria indistinguivel de uma flexibilizacao feita depois de ver o resultado.
+  const geracaoCases = [
+    {
+      nome: "valida na 1a tentativa",
+      entrada: { id: "a", falhasDeContrato: 0, temEvidenciaValida: true },
+      classe: "valid_first_attempt",
+      reprova: false,
+    },
+    {
+      nome: "json_validate_failed + retry bem-sucedido",
+      entrada: { id: "b", falhasDeContrato: 1, temEvidenciaValida: true },
+      classe: "recovered_after_retry",
+      reprova: false,
+    },
+    {
+      nome: "varias falhas mas recuperada dentro do teto",
+      entrada: { id: "c", falhasDeContrato: 6, temEvidenciaValida: true },
+      classe: "recovered_after_retry",
+      reprova: false,
+    },
+    {
+      nome: "retries esgotados sem resposta valida",
+      entrada: { id: "d", falhasDeContrato: 6, temEvidenciaValida: false },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "erro de contrato nao recuperavel (1 falha, sem evidencia)",
+      entrada: { id: "e", falhasDeContrato: 1, temEvidenciaValida: false },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "recuperou porem acima do teto de retries",
+      entrada: { id: "f", falhasDeContrato: 7, temEvidenciaValida: true },
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+    },
+    {
+      nome: "fala nao executada nao e falha de confiabilidade",
+      entrada: { id: "g", falhasDeContrato: 0, temEvidenciaValida: false },
+      classe: "nao_executada",
+      reprova: false,
+    },
+  ];
+  for (const c of geracaoCases) {
+    const r = classificarGeracao(c.entrada);
+    if (r.classe !== c.classe) {
+      failures += 1;
+      console.log(`FALHA geracao · ${c.nome}: esperado classe ${c.classe}, obtido ${r.classe}`);
+    }
+    if (r.reprova !== c.reprova) {
+      failures += 1;
+      console.log(
+        `FALHA geracao · ${c.nome}: esperado ${c.reprova ? "reprovar" : "nao reprovar"}, obtido ${r.reprova ? "reprovou" : "nao reprovou"}`,
+      );
+    }
+  }
+
   // O gate de tamanho valida o DESENHO. Um numero unico para todos os grupos deixaria
   // passar matriz pela metade OU reprovaria a comparacao controlada para sempre.
   const tamanhoCases = [
@@ -479,7 +539,7 @@ function runSelfTest() {
   }
 
   console.log(
-    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho de desenho · ${CHECKS.length} checagens · ${failures} falha(s)`,
+    `\nself-test: ${cases.length} casos de turno + ${matrizCases.length} de matriz + ${tamanhoCases.length} de tamanho + ${geracaoCases.length} de classificacao de geracao · ${CHECKS.length} checagens · ${failures} falha(s)`,
   );
   if (failures === 0) console.log("as checagens mecanicas se comportam como especificado.");
   process.exit(failures > 0 ? 1 : 0);
@@ -633,6 +693,55 @@ function desenhoDoGrupo(model) {
   return { rotulo: "dataset", exigencia: "minima", n: MINIMO_TURNOS };
 }
 
+// Classificacao de falha de geracao — decisao do usuario em 2026-09-16 20:43, registrada no
+// journal ANTES desta implementacao. Separa duas dimensoes que estavam colapsadas numa so:
+// VALIDADE FINAL DO CONTRATO (a execucao entregou turno valido?) e CONFIABILIDADE DA
+// GERACAO (quantas vezes o modelo falhou no caminho?). Falha recuperada nao reprova o
+// contrato e NUNCA e apagada da contagem.
+//
+// Fundamento: DEC-20260916-0311 ja prevê retry e fallback para `json_validate_failed`.
+// Isto aplica a decisao ao gate, em vez de abrir excecao para acomodar um resultado.
+const MAX_RETRIES_CONTRATO = 6; // espelha MAX_TENTATIVAS do run.mjs
+
+/**
+ * Entrada por fala: quantas falhas de contrato foram registradas e se existe evidencia
+ * final valida. Saida: a classe da fala e se ela reprova o contrato.
+ * Funcao PURA — nao le disco, para ser testavel sem rodada.
+ */
+function classificarGeracao({ id, falhasDeContrato, temEvidenciaValida }) {
+  if (falhasDeContrato === 0 && temEvidenciaValida) {
+    return { id, classe: "valid_first_attempt", reprova: false };
+  }
+  if (falhasDeContrato > 0 && temEvidenciaValida) {
+    if (falhasDeContrato > MAX_RETRIES_CONTRATO) {
+      // Recuperou, mas acima do teto: o contrato exige que o teto seja respeitado.
+      return {
+        id,
+        classe: "unrecovered_contract_failure",
+        reprova: true,
+        motivo: "teto de retries excedido",
+      };
+    }
+    return {
+      id,
+      classe: "recovered_after_retry",
+      reprova: false,
+      tentativas: falhasDeContrato + 1,
+    };
+  }
+  if (falhasDeContrato > 0 && !temEvidenciaValida) {
+    return {
+      id,
+      classe: "unrecovered_contract_failure",
+      reprova: true,
+      motivo: "nenhuma tentativa produziu resposta valida",
+    };
+  }
+  // Sem falha e sem evidencia: a fala simplesmente nao foi executada. Quem reprova isso e
+  // o gate de TAMANHO do desenho, nao o de confiabilidade — cada um no seu papel.
+  return { id, classe: "nao_executada", reprova: false };
+}
+
 function conferirTamanho(model, encontrados) {
   const d = desenhoDoGrupo(model);
   if (d.exigencia === "exata" && encontrados !== d.n) {
@@ -667,6 +776,11 @@ function assertContract() {
     let semEvidencia = 0;
     let semRegistro = 0;
 
+    // A unidade da metrica de confiabilidade e a GERACAO (um arquivo de evidencia), nao a
+    // fala: na matriz a mesma fala produz 4 geracoes. Contar por fala subnotificaria 48
+    // geracoes validas como 12.
+    const validasPorId = new Map();
+
     for (const file of files) {
       const rawEvidence = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
       const base = dataset.get(rawEvidence.id);
@@ -680,20 +794,60 @@ function assertContract() {
         contratoInvalido += 1;
         continue;
       }
-      if (validateEvidence(turn, record.aluno).length > 0) semEvidencia += 1;
+      if (validateEvidence(turn, record.aluno).length > 0) {
+        semEvidencia += 1;
+        continue;
+      }
+      validasPorId.set(rawEvidence.id, (validasPorId.get(rawEvidence.id) ?? 0) + 1);
     }
 
-    // Falha de rate limit e transitoria: o teto de tokens do tier gratuito nao diz nada
-    // sobre o contrato, e conta-la como falha de contrato travaria o criterio para sempre.
-    // Falha de CONTRATO (json_validate_failed, HTTP 4xx do schema) e outra historia.
+    // Rate limit e infraestrutura sao dimensao SEPARADA: nao dizem nada sobre a semantica
+    // do modelo. Falha de contrato (`json_validate_failed`, 4xx de schema) e agrupada POR
+    // FALA, porque a classificacao depende de a fala ter ou nao evidencia valida no fim.
     const failuresDir = path.join(target.modelDir, "_failures");
-    let falhasDeContrato = 0;
-    let falhasTransitorias = 0;
+    const falhasContratoPorFala = new Map();
+    let falhasDeInfra = 0;
     if (fs.existsSync(failuresDir)) {
       for (const name of fs.readdirSync(failuresDir).filter((f) => f.endsWith(".json"))) {
         const registro = JSON.parse(fs.readFileSync(path.join(failuresDir, name), "utf8"));
-        if (registro?.erro?.error === "rate_limit") falhasTransitorias += 1;
-        else falhasDeContrato += 1;
+        if (registro?.erro?.error === "rate_limit") {
+          falhasDeInfra += 1;
+          continue;
+        }
+        const id = registro?.id ?? "(sem id)";
+        falhasContratoPorFala.set(id, (falhasContratoPorFala.get(id) ?? 0) + 1);
+      }
+    }
+
+    // Metricas de recuperacao, nomeadas na decisao do usuario. Toda fala com evidencia ou
+    // com falha registrada e classificada; nenhuma ocorrencia e apagada.
+    const metrica = {
+      valid_first_attempt: 0,
+      recovered_after_retry: 0,
+      unrecovered_contract_failure: 0,
+    };
+    const recuperadas = [];
+    const naoRecuperadas = [];
+    const idsConhecidos = new Set([...validasPorId.keys(), ...falhasContratoPorFala.keys()]);
+    for (const id of idsConhecidos) {
+      const validas = validasPorId.get(id) ?? 0;
+      const r = classificarGeracao({
+        id,
+        falhasDeContrato: falhasContratoPorFala.get(id) ?? 0,
+        temEvidenciaValida: validas > 0,
+      });
+      if (r.classe === "valid_first_attempt") {
+        metrica.valid_first_attempt += validas;
+      } else if (r.classe === "recovered_after_retry") {
+        // Os registros de falha sao gravados por FALA, nao por celula, entao nao da para
+        // dizer QUAL geracao recuperou. Conta-se 1 recuperacao e as demais geracoes
+        // validas da mesma fala seguem como validas de primeira.
+        metrica.recovered_after_retry += 1;
+        metrica.valid_first_attempt += Math.max(0, validas - 1);
+        recuperadas.push(r);
+      } else if (r.classe === "unrecovered_contract_failure") {
+        metrica.unrecovered_contract_failure += 1;
+        naoRecuperadas.push(r);
       }
     }
 
@@ -702,20 +856,35 @@ function assertContract() {
     const linha = [
       `${target.model}: ${tamanho.nota}`,
       `contrato invalido=${contratoInvalido}`,
-      `sem evidencia=${semEvidencia}`,
-      `falhas de contrato=${falhasDeContrato}`,
+      `sem evidencia citada=${semEvidencia}`,
+      `nao recuperadas=${metrica.unrecovered_contract_failure}`,
     ].join(" · ");
 
+    // VALIDADE DO CONTRATO: falha RECUPERADA nao reprova. O que reprova e desenho
+    // incompleto, turno gravado invalido, correcao sem evidencia, ou falha nao recuperada.
     const reprovou =
       !tamanho.ok ||
       contratoInvalido > 0 ||
       semEvidencia > 0 ||
-      falhasDeContrato > 0 ||
+      metrica.unrecovered_contract_failure > 0 ||
       semRegistro > 0;
     console.log(`${reprovou ? "ERRO  " : "ok    "}${linha}`);
-    if (falhasTransitorias > 0) {
+
+    // CONFIABILIDADE DA GERACAO: reportada SEMPRE, inclusive quando o contrato passa.
+    console.log(
+      `      confiabilidade: valid_first_attempt=${metrica.valid_first_attempt} · recovered_after_retry=${metrica.recovered_after_retry} · unrecovered_contract_failure=${metrica.unrecovered_contract_failure}`,
+    );
+    for (const r of recuperadas) {
       console.log(
-        `      ${falhasTransitorias} falha(s) de rate limit ignorada(s) — transitoria, nao e falha de contrato`,
+        `      RECUPERADA  ${r.id}: json_validate_failed em ${r.tentativas - 1} tentativa(s), resposta valida depois — contabilizada, nao apagada`,
+      );
+    }
+    for (const r of naoRecuperadas) {
+      console.log(`      NAO RECUPERADA  ${r.id}: ${r.motivo}`);
+    }
+    if (falhasDeInfra > 0) {
+      console.log(
+        `      infra: ${falhasDeInfra} rate limit — dimensao separada, nao e falha semantica do modelo`,
       );
     }
     if (semRegistro > 0) {
@@ -725,7 +894,10 @@ function assertContract() {
   }
 
   console.log(
-    `\nassert-contract: ${targets.length} modelo(s) · ${problemas} reprovado(s) sob o contrato v2`,
+    `\nassert-contract: ${targets.length} desenho(s) · ${problemas} reprovado(s) na VALIDADE do contrato`,
+  );
+  console.log(
+    "Validade e confiabilidade sao dimensoes distintas: o desenho pode passar e ainda haver falha de geracao registrada.",
   );
   process.exit(problemas > 0 ? 1 : 0);
 }
