@@ -1,13 +1,13 @@
 # SPEC-20260916-1652: Motor de diálogo — server function, strict JSON e fallback
 
-**Status:** active
+**Status:** done
 **Porte:** G
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
 **Ativada:** 2026-09-17 12:07
-**Concluída:** —
+**Concluída:** 2026-09-17 15:53
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `ef7ba66`
 **Keywords:** motor, server-function, groq, strict-json, fallback, prompt
 **Features:** dialogo
 **Branch:** feature/motor-de-dialogo
