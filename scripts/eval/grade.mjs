@@ -140,6 +140,56 @@ const CHECKS = [
         ? null
         : turn.corrections.every((c) => !isSurfaceOnlyCorrection(c)),
   },
+  // Espelho de C12 (SPEC-20260916-2048-semantica-next-action). C12 cobre um lado:
+  // nao cobrar repeticao de quem nao errou. Faltava o outro: quem RECEBEU correcao
+  // deve ser convidado a aplica-la. A metrica central da §20 e "o aluno produziu
+  // linguagem e tentou novamente APOS receber feedback" — correcao que a conversa
+  // nunca cobra e informacao, nao ensino.
+  //
+  // Medido em 117 turnos de evidencia antes de existir: 41 de 64 turnos com correcao
+  // (64,1%) nao pediam aplicacao. O caso `hotel-10` esta gravado duas vezes, com
+  // `retry` no contrato-do-turno-v2 e `reply` no prompt-v5 — o prompt regrediu o caso
+  // e ninguem notou, porque nada media. Ver evidence/levantamento-taxa.md.
+  //
+  // Sem excecao por decisao do usuario em 2026-09-17: `continue_mission` e
+  // `complete_mission` com correcao pendente TAMBEM reprovam, ainda que nunca tenham
+  // ocorrido (0 de 107). Permitir observacao no fecho sem nova tentativa exige
+  // semantica NOVA no contrato do turno — distinguir correcao bloqueante de
+  // informativa — e nao afrouxamento desta checagem. Ver tabela-de-coerencia.md.
+  //
+  // ---------------------------------------------------------------------------------
+  // ESTATUTO DA C15: CHECAGEM DE OBSERVACAO, NAO NORMA. Decisao do usuario 2026-09-17.
+  //
+  // A C15 MEDE sob a regra estrita e REPORTA. Ela NAO e regra normativa suficiente para
+  // reprovar o nucleo pedagogico nem para bloquear CI.
+  //
+  // Motivo: `src/domain/next-action.ts` implementa uma politica ANTERIOR, explicita e
+  // testada — `if (temCorrecao && transition !== "complete")` — pela qual fechar a missao
+  // vence a cobranca de repeticao, "porque cobrar repeticao depois de o objetivo ter sido
+  // cumprido transformaria a vitoria do aluno em mais uma tarefa". Isso NAO e bug: e
+  // decisao de dominio com justificativa e teste nomeado, e permanece valida.
+  //
+  // Logo, duas leituras coexistem DE PROPOSITO ate a SPEC do contrato de correcoes:
+  //   C15    -> "sob a regra estrita, quantos turnos com correcao nao pedem aplicacao?"
+  //   nucleo -> "uma missao concluida pode vencer a necessidade de repeticao."
+  //
+  // A divergencia e limitada a `complete_mission`: para `continue_mission` o nucleo ja
+  // forca `retry`, coerente com a regra estrita.
+  //
+  // NAO transforme a C15 em gate (nem some ao `assertContract`) antes da SPEC futura que
+  // resolve, EM CONJUNTO: correcao bloqueante x informativa, comportamento de
+  // `next_action`, a excecao de `complete_mission`, o schema do turno, o nucleo, esta
+  // checagem e a compatibilidade com a evidencia historica.
+  // ---------------------------------------------------------------------------------
+  {
+    id: "C15",
+    name: "correcao emitida pede aplicacao (observacao)",
+    criterion: "mede a regra estrita; nao reprova o nucleo — ver estatuto acima",
+    check: (turn) =>
+      countCorrections(turn) === 0 || !Array.isArray(turn.corrections)
+        ? null
+        : turn.next_action === "retry",
+  },
 ];
 
 function evaluateTurn(turn, record) {
@@ -155,7 +205,7 @@ function evaluateTurn(turn, record) {
 }
 
 // ---------------------------------------------------------------------------
-// Checagens LONGITUDINAIS (SPEC-20260916-1652). As 13 checagens acima recebem um turno
+// Checagens LONGITUDINAIS (SPEC-20260916-1652). As 15 checagens acima recebem um turno
 // sem historia: por construcao nenhuma delas pode ver repeticao, retencao ou progressao.
 // Estas recebem o turno E os turnos anteriores da MESMA conversa.
 // ---------------------------------------------------------------------------
@@ -598,6 +648,61 @@ function buildSelfTestCases() {
       turn: createFixture({ corrections: [], next_action: "reply" }),
       record: controlRecord,
       expected: { C14: null },
+    },
+    // --- C15: correcao emitida pede aplicacao ----------------------------------
+    // Uma checagem que nunca acusa nada passa em qualquer rodada e nao protege nada.
+    // Estes casos provam que a C15 acusa os quatro valores incoerentes do enum e
+    // SILENCIA quando nao ha correcao.
+    {
+      name: "C15 aceita correcao com retry (caso canonico)",
+      turn: createFixture({ next_action: "retry" }),
+      record: errorRecord,
+      expected: { C15: true },
+    },
+    {
+      // O caso literal de `hotel-10` no prompt-v5: correcao emitida e a conversa segue.
+      name: "C15 acusa correcao com reply (o caso hotel-10)",
+      turn: createFixture({ next_action: "reply" }),
+      record: errorRecord,
+      expected: { C15: false },
+    },
+    {
+      // Sem base empirica (0 de 117) — classificado incoerente pela regra aprovada:
+      // avancar de etapa com correcao pendente fecha a etapa sem oportunidade de aplicar.
+      name: "C15 acusa correcao com continue_mission",
+      turn: createFixture({ next_action: "continue_mission" }),
+      record: errorRecord,
+      expected: { C15: false },
+    },
+    {
+      // Pior caso: a missao termina e nao existe turno futuro onde aplicar.
+      name: "C15 acusa correcao com complete_mission",
+      turn: createFixture({ next_action: "complete_mission" }),
+      record: errorRecord,
+      expected: { C15: false },
+    },
+    {
+      name: "sem correcao, C15 nao se aplica",
+      turn: createFixture({ corrections: [], next_action: "reply" }),
+      record: controlRecord,
+      expected: { C15: null },
+    },
+    {
+      // O unico `complete_mission` observado em 117 turnos veio SEM correcao: desfecho
+      // limpo. A C15 tem de silenciar aqui, senao reprova o fim legitimo de missao.
+      name: "sem correcao com complete_mission, C15 nao se aplica",
+      turn: createFixture({ corrections: [], next_action: "complete_mission" }),
+      record: controlRecord,
+      expected: { C15: null },
+    },
+    {
+      // C15 nao depende de `record` — ao contrario de C12, que precisa de tipo_erro.
+      // Isto permite rodar a C15 sobre QUALQUER evidencia, inclusive matriz e conversas,
+      // onde o record do dataset nao se aplica. O caso prova a independencia.
+      name: "C15 independe do record (controle com correcao e reply reprova)",
+      turn: createFixture({ next_action: "reply" }),
+      record: controlRecord,
+      expected: { C15: false },
     },
   ];
 }
@@ -1994,8 +2099,130 @@ function levantamentoSuperficie() {
   }
 }
 
+// Levantamento da SPEC-20260916-2048-semantica-next-action: a taxa real de correcao
+// emitida SEM pedido de aplicacao nas evidencias JA GRAVADAS, sem uma unica chamada nova
+// ao modelo. Mesma forma do levantamento de grafia acima, e pela mesma razao: a checagem
+// nova precisa de uma taxa ANTES da intervencao, senao nao se sabe se instrucao de prompt
+// bastaria. Reporta as duas fontes SEPARADAS — somar atual com historico nao da taxa, da
+// mistura.
+function levantamentoAplicacao() {
+  const fontes = [
+    { rotulo: "execucao atual (docs/active/)", targets: findEvidenceTargets() },
+    { rotulo: "historico (docs/archive/)", targets: findHistoricalEvidenceTargets() },
+  ];
+
+  const ENUM_NEXT_ACTION = ["retry", "reply", "continue_mission", "complete_mission"];
+  let algumaEvidencia = false;
+
+  for (const fonte of fontes) {
+    console.log(`\n${"=".repeat(78)}`);
+    console.log(fonte.rotulo);
+    console.log("=".repeat(78));
+    if (fonte.targets.length === 0) {
+      console.log("  nenhuma evidencia nesta fonte.");
+      continue;
+    }
+
+    let turnos = 0;
+    let semCampo = 0;
+    // distribuicao["com"|"sem"][next_action] — o cruzamento que a tabela de coerencia usa
+    const distribuicao = { com: {}, sem: {} };
+    const casos = [];
+
+    for (const target of fonte.targets) {
+      const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
+      for (const file of files) {
+        const raw = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
+        const turn = extractTurn(raw);
+        if (!turn) continue;
+        turnos += 1;
+
+        // Evidencia anterior ao contrato do turno v2 nao tem `next_action`. Fica fora da
+        // taxa por AUSENCIA DO CAMPO, nunca contada como violacao — contar ausencia como
+        // falha inventaria uma lacuna que aquele contrato nao tinha como ter.
+        if (typeof turn.next_action !== "string") {
+          semCampo += 1;
+          continue;
+        }
+
+        const lado = countCorrections(turn) > 0 ? "com" : "sem";
+        distribuicao[lado][turn.next_action] = (distribuicao[lado][turn.next_action] ?? 0) + 1;
+
+        if (lado === "com" && turn.next_action !== "retry") {
+          casos.push({
+            spec: target.spec,
+            model: target.model,
+            file,
+            next_action: turn.next_action,
+            nCorrecoes: turn.corrections.length,
+            categorias: turn.corrections.map((c) => c?.category).join(", "),
+          });
+        }
+      }
+    }
+
+    algumaEvidencia = algumaEvidencia || turnos > 0;
+
+    const somaLado = (lado) => Object.values(distribuicao[lado]).reduce((a, b) => a + b, 0);
+    const comCorrecao = somaLado("com");
+    const semCorrecao = somaLado("sem");
+    const pct = (parte, todo) => (todo === 0 ? "—" : `${((parte / todo) * 100).toFixed(1)}%`);
+
+    console.log(`  alvos                    : ${fonte.targets.length}`);
+    console.log(`  turnos lidos             : ${turnos}`);
+    console.log(`  sem next_action (pre-v2) : ${semCampo}  <- fora da taxa, campo inexistente`);
+    console.log(`  turnos mensuraveis       : ${comCorrecao + semCorrecao}`);
+
+    for (const lado of ["com", "sem"]) {
+      const total = lado === "com" ? comCorrecao : semCorrecao;
+      console.log(`\n  ${lado} correcao — ${total} turnos:`);
+      for (const na of ENUM_NEXT_ACTION) {
+        const n = distribuicao[lado][na] ?? 0;
+        const marca = lado === "com" && na !== "retry" && n > 0 ? "  <- incoerente" : "";
+        console.log(`    ${na.padEnd(18)} ${String(n).padStart(4)}  ${pct(n, total)}${marca}`);
+      }
+    }
+
+    const naoPedeAplicacao = comCorrecao - (distribuicao.com.retry ?? 0);
+    console.log(
+      `\n  A LACUNA: ${naoPedeAplicacao} de ${comCorrecao} turnos com correcao (${pct(naoPedeAplicacao, comCorrecao)}) nao pedem aplicacao`,
+    );
+    console.log("  (e exatamente o que a C15 acusa)");
+    const emFechamento = distribuicao.com.complete_mission ?? 0;
+    if (emFechamento > 0) {
+      console.log(
+        `  DESTES, ${emFechamento} em complete_mission — DIVERGENCIA CONHECIDA, nao defeito:`,
+      );
+      console.log(
+        "  o nucleo permite fechar missao com correcao de proposito (src/domain/next-action.ts).",
+      );
+      console.log("  A C15 mede sob a regra estrita; a reconciliacao e da SPEC do contrato de");
+      console.log("  correcoes (bloqueante x informativa). Nao trate como reprovacao.");
+    }
+
+    if (casos.length > 0) {
+      console.log("\n  casos:");
+      for (const c of casos) {
+        console.log(
+          `  - ${c.spec} · ${c.model} · ${c.file}  ->  next_action=${c.next_action}, ${c.nCorrecoes} correcao(oes) [${c.categorias}]`,
+        );
+      }
+    }
+  }
+
+  console.log(
+    "\nnota: `conversas/` nao entra aqui — uma conversa e um arquivo com varios turnos e tem",
+  );
+  console.log("caminho proprio (--conversas). Este levantamento cobre as rodadas por turno.");
+  if (!algumaEvidencia) {
+    console.log("\nnenhuma evidencia legivel em nenhuma das duas fontes.");
+    process.exit(1);
+  }
+}
+
 const argv = process.argv;
-if (argv.includes("--levantamento-superficie")) levantamentoSuperficie();
+if (argv.includes("--levantamento-aplicacao")) levantamentoAplicacao();
+else if (argv.includes("--levantamento-superficie")) levantamentoSuperficie();
 else if (argv.includes("--conversas")) relatorioConversas();
 else if (argv.includes("--self-test")) runSelfTest();
 else if (argv.includes("--matriz")) {

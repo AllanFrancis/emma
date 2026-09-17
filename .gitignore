@@ -31,6 +31,9 @@ dist-ssr
 *.sln
 *.sw?
 docs/active/**/tmp/
+# tmp/ segue descartavel DEPOIS do archive: o close move a pasta e o padrao acima deixa
+# de casar, entao os descartaveis entrariam no commit de arquivamento.
+docs/archive/**/tmp/
 .scratch/
 
 # Worktrees de SPECs paralelas (1 worktree = 1 branch = 1 SPEC ativa)
