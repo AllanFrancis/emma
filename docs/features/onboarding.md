@@ -7,9 +7,8 @@
 
 ## Specs desta feature
 ### Concluídas
-—
+- SPEC-20260916-1652 | 2026-09-17 | `pendente` | Onboarding e perfil pedagógico — entrada, promessa e as 6 perguntas que alimentam o motor, com `LearnerProfile` e `TeacherPreferences` gravados
 ### Planejadas (future/)
-- SPEC-20260916-1652-onboarding-e-perfil | Onboarding e perfil pedagógico | Entrega as telas de entrada e as 6 perguntas que alimentam o motor
 - SPEC-20260916-1652-diagnostico-inicial | Diagnóstico inicial — primeira vitória e primeira amostra | Compartilhado com `avaliacao`: a primeira produção de linguagem acontece no onboarding
 
 ## Estado atual
