@@ -1,16 +1,16 @@
 # SPEC-20260916-2048: Semântica de next_action — correção emitida exige aplicação
 
-**Status:** draft
+**Status:** active
 **Porte:** P
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
+**Ativada:** 2026-09-17 12:07
 **Concluída:** —
 **Pausada em:** —
 **Commit final:** —
 **Keywords:** next-action, retry, coerencia, nucleo, hotel-10
 **Features:** pedagogia, dialogo
-**Branch:** —
+**Branch:** feature/semantica-next-action
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "semântica de `next_action`, especialmente casos como `hotel-10`, em que existe correção mas o fluxo segue com `reply`"
