@@ -9,8 +9,10 @@
 ### Concluídas
 - SPEC-20260916-0109 | 2026-09-16 | `06b391c` | Rubrica de nível e eval do motor de diálogo
 - SPEC-20260916-1652 | 2026-09-17 | `pendente` | Núcleo pedagógico — mediana, teto por sustentação e histerese como código testável
+- SPEC-20260916-2048 | 2026-09-17 | `pendente` | Metodologia de eval — parâmetros de amostragem controlados e gravados; mediu que `seed` não reproduz no Groq
 ### Planejadas (future/)
 - SPEC-20260916-1652-diagnostico-inicial | Diagnóstico inicial — primeira vitória e primeira amostra | Substitui a heurística `hasPolite` pela rubrica com evidência citada
+- SPEC-20260917-1059-metodologia-de-repeticao | Metodologia de repetição | Comparabilidade sobre repetição e medida agregada, já que `seed` não reproduz
 
 ## Estado atual
 
