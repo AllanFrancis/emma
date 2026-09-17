@@ -2,33 +2,57 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 00:23
-**Onde tô:** início — nada feito ainda
-**Próximo passo:** <primeiro passo concreto>
-**Última decisão:** —
-**Bloqueio atual:** nenhum
-**Se retomar, ler:** main.md desta SPEC
+**Última atualização:** 2026-09-17 00:24
+**Onde tô:** critérios 1-5 carimbados (`70233a0`); critério 6 ABERTO, aguardando leitura do usuário
+**Próximo passo:** usuário decide sobre o critério 6 (R.6.2) — implementar agora / SPEC nova / aceitar gap
+**Última decisão:** temperature fixada em 1 e seed em 20260916; timeout de 30s derivado de 215 turnos
+**Bloqueio atual:** critério 6 — a dispersão foi medida e é ALTA; "resultado comparável" depende da leitura do critério
+**Se retomar, ler:** main.md + a entrada `[descoberta]` sobre seed não dar reprodutibilidade
 
 ### Fases
 | # | Descrição | Status | Atualizado |
 |---|---|---|---|
-| 1 | <fase> | pendente | 2026-09-16 23:23 |
+| 1 | Confirmar `temperature`/`seed` na doc viva do Groq | concluída | 2026-09-17 00:02 |
+| 2 | Fixar amostragem no payload e gravar na evidência | concluída | 2026-09-17 00:03 |
+| 3 | Retry in-process de `json_validate_failed` | concluída | 2026-09-17 00:03 |
+| 4 | Timeout derivado do custo medido | concluída | 2026-09-17 00:03 |
+| 5 | Registro de falha por CÉLULA | concluída | 2026-09-17 00:03 |
+| 6 | Duas execuções comparáveis + dispersão reportada | dispersão medida; aceite do critério ABERTO | 2026-09-17 00:23 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
-- fato:
-- inferência:
-- dúvida:
+- fato: `temperature` e `seed` são suportados pelo Groq — confirmado na referência viva da API, não por analogia com a OpenAI. `temperature` default 1, faixa 0-2; `seed` é "best effort" e a doc manda observar `system_fingerprint`.
+- fato: `temperature: 0` é convertida para 1e-8 pelo Groq (página de compatibilidade OpenAI).
+- fato: a evidência ARQUIVADA já trazia `x_groq.seed` — o Groq devolve o seed que usou mesmo sem receber um. As rodadas antigas eram reproduzíveis a posteriori e ninguém sabia.
+- fato: `seed` fixo NÃO reproduz. Duas execuções de `cafe-01` com temperature, seed, `seed_efetivo` e `system_fingerprint` idênticos divergiram em 7 dos 9 campos, com +8,4% de token.
+- fato: timeout de 30s derivado de 215 turnos gravados — parede máxima 2,91s, p99 2,39s, pior caso estimado de geração ~8,5s (3.433 tokens a 403 tok/s).
+- fato: `--self-test` do runner passa com 0 falhas, sem rede, cobrindo classificação de falha, retry que recupera na 3ª geração, timeout que dispara, nome de célula e gravação de amostragem.
+- fato: o retry de rate limit funcionou em produção nas duas rodadas reais (uma esperou 20s, outra 502s) e recuperou nas duas.
+- inferência: o padrão de divergência sugere variância de amostragem pura, já que parâmetro e backend foram eliminados por evidência. Não testei com N>2 nem com `temperature` baixa.
+- dúvida: com `temperature: 0` (1e-8 no Groq) a dispersão cairia? Não medido — e medir custa cota.
 
 ### Respostas-chave do usuário
+- 2026-09-16: "A chave do Groq fica somente em `metodologia-de-eval`; as outras SPECs devem continuar executáveis offline." → `.env.local` copiado só para este worktree.
+- 2026-09-16: "siga de forma autonoma!" → rodadas reais executadas sem confirmação a cada passo.
 
 ### Tentativas que falharam
+- `process.exit()` no fim do self-test: com stdout em PIPE no Windows, trunca tudo e o teste rodava mudo, com código 0. Trocado por `process.exitCode`.
+- Dublê de timeout que só espera o `abort`: `AbortSignal.timeout` usa timer UNREF, então o node esvaziava a fila e SAÍA com código 0 antes de o timeout disparar. Resolvido com um `setTimeout` ref'd só para o teste poder observar.
+- Dublê sem headers de rate limit: `Number(null)` é 0, então `throttleByTokenBudget` dormia 20s dentro do self-test. Resolvido pondo headers realistas no dublê — o comportamento do runner NÃO foi alterado (fora de escopo, registrado como gotcha).
+- Repetição 2 abortada duas vezes por cota da organização drenada, com `retry-after` de 502s. Concluída depois, em background, com `--limit 1`.
 
 ### Arquivos tocados
+- `scripts/eval/run.mjs` — amostragem, timeout, classificação e retry de `json_validate_failed`, falha por célula, `--self-test`, flags `--temperature`/`--seed`.
+- `docs/features/avaliacao.md` — DEC-20260917-0002, DEC-20260917-0003 e 3 gotchas.
+- `docs/features/dialogo.md` — DEC-20260917-0004.
+- Evidência: `evidence/openai_gpt-oss-20b/repeticao-1/` (3 falas) e `repeticao-2/` (1 fala), mais 4 registros em `_failures/`.
 
 ### Onde parei
+Critérios 1-5 carimbados. O 6 está medido e documentado, mas NÃO marcado: quem lê
+"resultado comparável" é o usuário, não eu.
 
 ### Sessões (máx 5 linhas + 1 agregada)
+- 2026-09-16 23:23→2026-09-17 00:24 — ativação, doc viva do Groq, as 5 fases de instrumento, duas rodadas reais e a medição da dispersão.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
