@@ -1,26 +1,26 @@
 # SPEC-20260916-2048: Semântica de next_action — correção emitida exige aplicação
 
-**Status:** draft
+**Status:** done
 **Porte:** P
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
-**Concluída:** —
+**Ativada:** 2026-09-17 12:07
+**Concluída:** 2026-09-17 13:04
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `688090c`
 **Keywords:** next-action, retry, coerencia, nucleo, hotel-10
 **Features:** pedagogia, dialogo
-**Branch:** —
+**Branch:** feature/semantica-next-action
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "semântica de `next_action`, especialmente casos como `hotel-10`, em que existe correção mas o fluxo segue com `reply`"
-**Resumo:** Define e valida a coerência entre emitir correção e pedir que o aluno a aplique, fechando a lacuna que nenhuma das 13 checagens mede.
+**Resumo:** Define e valida a coerência entre emitir correção e pedir que o aluno a aplique, fechando a lacuna que nenhuma das 14 checagens de turno media.
 
 ## Objetivo
 
 Na comparação controlada da SPEC-20260916-1652, `hotel-10` mudou `next_action` de `retry` para
 `reply` mantendo a correção emitida. Pedagogicamente isso é pior: o aluno recebe a forma correta e
-a conversa segue sem que ele a use. E **nenhuma das 13 checagens captura isso** — C12 só olha casos
+a conversa segue sem que ele a use. E **nenhuma das 14 checagens de turno captura isso** — C12 só olha casos
 de controle, verificando que não se pede repetição a quem não errou. Falta o espelho: quem recebeu
 correção deveria ser convidado a aplicá-la. A métrica central da §20 é justamente "o aluno produziu
 linguagem e tentou novamente após receber feedback".
@@ -76,7 +76,7 @@ Trabalho de definição e medição, quase todo offline sobre evidência existen
 
 ## Critério de aceite
 
-- [ ] Tabela de coerência `corrections` × `next_action` escrita e revisada, com justificativa por combinação
-- [ ] Checagem nova implementada, com casos de teste para coerente e incoerente
-- [ ] Taxa medida sobre as evidências já gravadas, sem nenhuma chamada nova ao modelo
-- [ ] Decisão registrada sobre resolver por prompt ou pelo núcleo, sustentada pela taxa medida | evidence: manual @allan
+- [x] Tabela de coerência `corrections` × `next_action` escrita e revisada, com justificativa por combinação (2026-09-17 12:41, commit `27e8198`, evidence: tabela-de-coerencia.md revisada e aprovada pelo usuario; as duas linhas sem base empirica (continue_mission e complete_mission com correcao) classificadas INCOERENTES por decisao dele, com a excecao de correcao nao bloqueante recusada explicitamente)
+- [x] Checagem nova implementada, com casos de teste para coerente e incoerente (2026-09-17 12:41, commit `27e8198`, evidence: C15 em CHECKS de grade.mjs + 7 casos de self-test cobrindo coerente (retry), os tres incoerentes (reply, continue_mission, complete_mission), os dois de silencio sem correcao, e a independencia de record. Suite: 33 casos de turno, 15 checagens, 0 falha)
+- [x] Taxa medida sobre as evidências já gravadas, sem nenhuma chamada nova ao modelo (2026-09-17 12:41, commit `27e8198`, evidence: 38 de 61 turnos com correcao (62,3%) nao pedem aplicacao, todos reply. Reproduzivel: node scripts/eval/grade.mjs --levantamento-aplicacao. Zero chamada nova ao modelo. Universo mensuravel 107 turnos; 90 pre-contrato-v2 ficam fora por ausencia do campo. Detalhe em evidence/levantamento-taxa.md)
+- [x] Decisão registrada sobre resolver por prompt ou pelo núcleo, sustentada pela taxa medida | evidence: manual @allan (2026-09-17 12:41, commit `27e8198`, evidence: manual @allan 2026-09-17: nucleo sobrescreve a proposta do modelo. Sustentado pela taxa de 62,3% e pelo hotel-10 gravado com retry no contrato-do-turno-v2 e reply no prompt-v5, que descarta instrucao de prompt como garantia. Consistente com DEC-20260916-1612)
