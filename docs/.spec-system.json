@@ -4,7 +4,7 @@
   "installed_at": "2026-09-15 23:31",
   "policy": "standard",
   "interop": "inline",
-  "team": "solo",
+  "team": "multi",
   "product": null,
   "commands": {
     "test": "bun test",

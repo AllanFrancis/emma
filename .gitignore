@@ -32,3 +32,6 @@ dist-ssr
 *.sw?
 docs/active/**/tmp/
 .scratch/
+
+# Worktrees de SPECs paralelas (1 worktree = 1 branch = 1 SPEC ativa)
+.worktrees/
