@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 00:02
+**Última atualização:** 2026-09-17 00:23
 **Onde tô:** início — nada feito ainda
 **Próximo passo:** <primeiro passo concreto>
 **Última decisão:** —
@@ -137,3 +137,108 @@ fingerprint muda — sem ele, uma divergência entre rodadas fica sem explicaç�
 No caminho de conversa a amostragem é gravada POR TURNO, já que uma conversa pode
 atravessar uma troca de backend no meio.
 ⎿ commit acb8deb+dirty · 2 files changed, 448 insertions(+), 122 deletions(-)
+
+## 2026-09-17 00:03 — [blocker] Criterio 6 aberto: cota de tokens do Groq drenada, retry-after em 502s — repeticao 2 nao completou
+
+Critério 6 NÃO evidenciado: "Duas execuções da mesma condição, com parâmetros fixados,
+produzem resultado comparável — e a dispersão residual é reportada | evidence: manual
+@allan". Fica ABERTO, e o usuário decide o que fazer com ele.
+
+O que foi feito e o que travou:
+
+- Repetição 1 executada com sucesso: 3 falas (`cafe-01`, `cafe-02`, `cafe-03`) com
+  `temperature=1 seed=20260916`, gravadas em
+  `evidence/openai_gpt-oss-20b/repeticao-1/`. A rodada exercitou o caminho de rate limit
+  de verdade (`cafe-03`, 1 tentativa, 20s) e recuperou.
+- Repetição 2 NÃO completou. O orçamento de tokens por minuto da ORGANIZAÇÃO está
+  drenado: a primeira tentativa já voltou 429 e o `retry-after` do Groq subiu de 20s para
+  502s. Duas execuções foram abortadas por tempo antes de qualquer turno gravar.
+  Registros em `_failures/cafe-01-*.json` (3 arquivos), preservados de propósito.
+
+Isto é limite de cota, não defeito do que a SPEC entrega. Os critérios 1-5 estão
+carimbados e o instrumento está pronto: a amostragem é fixada e gravada, o retry de
+geração funciona (provado no self-test, sem rede), o timeout dispara e o nome da falha
+carrega a célula.
+
+O que ainda falta, e é barato quando a cota voltar:
+
+    bun scripts/eval/run.mjs --limit 3
+    # mover os 3 .json para evidence/openai_gpt-oss-20b/repeticao-2/
+    # comparar repeticao-1 com repeticao-2 campo a campo e reportar a dispersão
+
+O `skip` por arquivo existente é o que obriga a mover a rodada anterior para uma
+subpasta antes de repetir; as duas subpastas viram alvos separados no grader, que é
+exatamente o desenho que `findEvidenceTargets` já suporta.
+
+Uma observação metodológica que a leitura humana deve levar em conta: as evidências
+antigas mostram que o Groq devolve `x_groq.seed` mesmo sem seed enviado, e agora
+gravamos pedido e efetivo. Se a repetição 2 divergir da 1 com o mesmo seed, a primeira
+coisa a olhar é o `system_fingerprint` — a doc do Groq diz que o determinismo do seed
+morre quando ele muda, e nesse caso a divergência é do backend, não da amostragem.
+
+R.6.2: nenhuma redução de escopo foi feita por conta própria. O critério continua `[ ]`.
+⎿ commit 70233a0+dirty · 1 file changed, 5 insertions(+), 5 deletions(-)
+
+## 2026-09-17 00:23 — [descoberta] seed NAO da reprodutibilidade no Groq: 7 de 9 campos divergiram com seed e fingerprint identicos
+
+Duas execuções da MESMA condição, com os parâmetros fixados, e o resultado contraria a
+leitura otimista do critério 6: a saída NÃO é reproduzível.
+
+Condição idêntica nas duas repetições, verificada na própria evidência:
+  temperature .......... 1 e 1
+  seed pedido .......... 20260916 e 20260916
+  seed EFETIVO ......... 20260916 e 20260916   (o Groq confirmou que usou o que pedimos)
+  system_fingerprint ... fp_84bb35977d nas duas (mesmo backend)
+  prompt ............... v5, mesma fala (`cafe-01`)
+
+Dispersão residual: **7 dos 9 campos do turno divergiram.**
+
+  reply_en        "Sure thing! Are you looking for a black coffee or something like a
+                   latte?"  vs  "Sure! Would you like milk or sugar with your coffee?"
+  reply_pt        idem, traduzido
+  instruction_pt  "Escolha o tipo de café que deseja." vs "Como você gostaria de preparar
+                   o café?"
+  suggestion_en   "Black coffee, please." vs "I would like a coffee, please."
+  suggestion_pt   idem
+  words           ["black coffee","latte","espresso"] vs ["would you like","a coffee",
+                   "please"]
+  focus           "" vs "Use 'please' to make a polite request."
+
+Só `corrections` e `next_action` bateram — e `corrections` bateu porque estava vazio nas
+duas, o que é coincidência de caso de controle, não estabilidade demonstrada.
+
+Custo também variou: 1.993 vs 2.161 tokens (completion 461 vs 629), ou seja +8,4% de
+token na mesma condição.
+
+O QUE ISSO SIGNIFICA, e é o achado que muda desenho:
+
+A doc do Groq diz que `seed` é "best effort" e manda observar o `system_fingerprint` para
+saber quando o determinismo deixou de valer. Aqui o fingerprint é IDÊNTICO e a saída
+divergiu de todo modo. Então, para `openai/gpt-oss-20b` no Groq, seed não entrega
+reprodutibilidade — nem com backend estável. A ressalva da doc não é teórica.
+
+Consequência prática, e ela não é pequena: comparabilidade entre rodadas NÃO pode se
+apoiar em seed. Ela tem de vir de REPETIÇÃO e medida agregada. Uma célula medida uma vez
+não sustenta conclusão sobre diferença entre condições — foi exatamente a limitação que a
+SPEC-20260916-1652 registrou como "diferença isolada não atribuível", e o instrumento novo
+mostra que fixar o seed não a remove.
+
+Isso afeta o desenho da SPEC-20260916-2048-tom-versus-pedagogia: a condição de controle por
+repetição deixa de ser refinamento e passa a ser o único caminho. Não implementei nada
+daquela SPEC aqui — só registro que a premissa mudou.
+
+O que o instrumento DE FATO entregou, e vale:
+- os parâmetros agora são conhecidos, fixados e gravados; "não sabíamos os parâmetros"
+  deixou de ser ressalva possível;
+- `seed_efetivo` e `system_fingerprint` na evidência permitem separar três causas que antes
+  se confundiam numa só: parâmetro diferente, backend diferente, ou variância de
+  amostragem. Nesta medição as duas primeiras foram ELIMINADAS por evidência, e é por isso
+  que a terceira pôde ser afirmada.
+
+R.6.2: NÃO marquei o critério 6. Ele pede "duas execuções da mesma condição, com
+parâmetros fixados, produzem resultado comparável — e a dispersão residual é reportada". A
+segunda metade está cumprida e documentada. A primeira depende de como o usuário lê
+"comparável": comparável no sentido de que a comparação passou a ser possível e as causas
+espúrias foram eliminadas, SIM; comparável no sentido de saída parecida, NÃO. A leitura é
+dele, não minha.
+⎿ commit 70233a0+dirty · 2 files changed, 47 insertions(+), 6 deletions(-)

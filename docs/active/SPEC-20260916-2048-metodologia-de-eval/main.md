@@ -79,9 +79,9 @@ Tudo em `scripts/eval/`, sem tocar o produto.
 
 ## Critério de aceite
 
-- [ ] Suporte a `temperature` e `seed` no Groq confirmado contra a documentação viva, com a fonte citada
-- [ ] Parâmetros de amostragem fixados no payload e gravados em toda evidência nova
-- [ ] `json_validate_failed` recebe retry in-process conforme a DEC-20260916-0311, com teste do caminho
-- [ ] Requisição tem timeout derivado do custo medido, com teste que prova que a rodada não trava
-- [ ] Registro de falha identifica a CÉLULA, permitindo atribuir a recuperação à geração certa
+- [x] Suporte a `temperature` e `seed` no Groq confirmado contra a documentação viva, com a fonte citada (2026-09-17 00:03, commit `70233a0`)
+- [x] Parâmetros de amostragem fixados no payload e gravados em toda evidência nova (2026-09-17 00:03, commit `70233a0`)
+- [x] `json_validate_failed` recebe retry in-process conforme a DEC-20260916-0311, com teste do caminho (2026-09-17 00:03, commit `70233a0`)
+- [x] Requisição tem timeout derivado do custo medido, com teste que prova que a rodada não trava (2026-09-17 00:03, commit `70233a0`)
+- [x] Registro de falha identifica a CÉLULA, permitindo atribuir a recuperação à geração certa (2026-09-17 00:03, commit `70233a0`)
 - [ ] Duas execuções da mesma condição, com parâmetros fixados, produzem resultado comparável — e a dispersão residual é reportada | evidence: manual @allan
