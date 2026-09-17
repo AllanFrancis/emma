@@ -1,13 +1,13 @@
 # SPEC-20260916-2048: Semântica de next_action — correção emitida exige aplicação
 
-**Status:** active
+**Status:** done
 **Porte:** P
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
 **Ativada:** 2026-09-17 12:07
-**Concluída:** —
+**Concluída:** 2026-09-17 13:04
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `688090c`
 **Keywords:** next-action, retry, coerencia, nucleo, hotel-10
 **Features:** pedagogia, dialogo
 **Branch:** feature/semantica-next-action
