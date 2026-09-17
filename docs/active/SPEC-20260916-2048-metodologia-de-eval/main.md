@@ -1,16 +1,16 @@
 # SPEC-20260916-2048: Metodologia de eval — controle de parâmetros e retry alinhado à DEC
 
-**Status:** draft
+**Status:** active
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
+**Ativada:** 2026-09-16 23:23
 **Concluída:** —
 **Pausada em:** —
 **Commit final:** —
 **Keywords:** metodologia, temperature, seed, retry, confiabilidade, timeout
 **Features:** dialogo, avaliacao
-**Branch:** —
+**Branch:** feature/metodologia-de-eval
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "necessidade de melhorar a metodologia de avaliação futura, incluindo controle de parâmetros quando o provider/modelo permitir"
