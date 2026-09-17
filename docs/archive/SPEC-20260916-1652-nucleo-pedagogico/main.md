@@ -1,13 +1,13 @@
 # SPEC-20260916-1652: Núcleo pedagógico — as regras que não pertencem ao LLM
 
-**Status:** active
+**Status:** done
 **Porte:** G
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
 **Ativada:** 2026-09-16 23:23
-**Concluída:** —
+**Concluída:** 2026-09-17 00:36
 **Pausada em:** —
-**Commit final:** —
+**Commit final:** `9087faf`
 **Keywords:** pedagogia, intent, politica, nivel, missao, rubrica
 **Features:** pedagogia, avaliacao
 **Branch:** feature/nucleo-pedagogico
