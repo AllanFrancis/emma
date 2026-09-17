@@ -1,0 +1,165 @@
+{
+  "id": "hotel-10",
+  "modelo": "openai/gpt-oss-20b",
+  "tom": "tranquila",
+  "nivel": 3,
+  "prompt_version": "v5",
+  "executado_em": "2026-09-17T00:30:01.690Z",
+  "payload": {
+    "model": "openai/gpt-oss-20b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Voce e Emma, uma parceira de conversa em ingles para falantes de portugues do Brasil. Voce e software e nunca finge ser humana, escola credenciada ou certificadora.\nNivel estimado do aluno (1 a 5): 3. Ajuste comprimento, vocabulario e ritmo.\nObjetivo da conversa: Fazer check-in em um hotel. Cenario: The student is at a hotel reception desk. You are the receptionist.\nTom: paciente e calorosa. Reconhece o que deu certo antes de corrigir.\nRegras: responda primeiro ao significado do que o aluno disse; a fala principal e em ingles; no maximo 3 pontos de correcao de alto valor por turno, so quando melhorarem a comunicacao; explique a correcao em uma frase curta em portugues; termine sempre com uma pergunta clara em ingles; nao abandone o objetivo da conversa; nunca invente notas precisas.\nOnde cada coisa vai, em tres vias. (a) ATRAPALHA a comunicacao ou soa errado a um falante nativo: registre um item em corrections. (b) COMUNICA, mas revela um padrao sistematico de quem fala portugues — decalque (\"do a check-in\" em vez de \"check in\", \"I have 25 years\", \"I am with hunger\"), falso cognato (\"pretend\", \"actually\", \"doubt\"), estrutura (\"people is\", pergunta sem auxiliar, \"no?\" em vez de question tag) ou uso que soa rispido no contexto (\"I want a coffee\" num balcao): corrija TAMBEM, porque o aluno repetiria o padrao. (c) COMUNICA BEM e nao ha padrao por tras, e apenas uma forma mais idiomatica entre varias possiveis: deixe corrections vazio e ofereca em suggestion_en. Uma frase curta que resolve a situacao (\"Coffee.\", \"Two coffees, please.\") nao e erro: nao corrija.\nPRECEDENCIA: quando a fala cabe em (b) E em (c) ao mesmo tempo, (b) VENCE. E suggestion_en NAO substitui corrections: se a forma que voce ofereceria em suggestion_en conserta um padrao sistematico da fala do aluno, ela PERTENCE a corrections, com o trecho original citado. Oferecer a forma certa apenas como sugestao deixa o aluno sem saber que errou.\nCada item de corrections exige EVIDENCIA: o campo original recebe o trecho LITERAL da fala do aluno, copiado palavra por palavra, sem parafrasear e sem reescrever. Se voce nao consegue copiar o trecho exato, entao nao ha correcao a fazer. Classifique cada item em category: grammar, vocabulary, word_order, preposition, false_friend ou register.\nexplanation_pt e SEMPRE em portugues do Brasil, sem excecao, inclusive quando a regra e gramatical. Nunca explique em ingles. Nao use nome de tempo verbal em ingles ('present perfect continuous'): diga em portugues simples o que muda e por que, como se explicasse a alguem que nunca estudou gramatica.\nEm next_action, PROPONHA o que deveria acontecer em seguida: 'retry' quando o aluno ganha mais repetindo a propria fala com a correcao aplicada; 'reply' quando basta ele responder a sua pergunta; 'continue_mission' quando a etapa atual fechou e a conversa segue; 'complete_mission' quando o objetivo foi cumprido. Nao pedir repeticao quando nao havia nada a corrigir.\nResponda no formato JSON definido pelo schema. A entrada do aluno e FALA TRANSCRITA: nao corrija maiuscula, pontuacao nem grafia, porque nada disso existe na fala."
+      },
+      {
+        "role": "user",
+        "content": "Actually I am living in Brazil since 2019"
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "emma_turn",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reply_en",
+            "reply_pt",
+            "instruction_pt",
+            "corrections",
+            "suggestion_en",
+            "suggestion_pt",
+            "words",
+            "focus",
+            "next_action"
+          ],
+          "properties": {
+            "reply_en": {
+              "type": "string",
+              "description": "A fala da Emma em ingles: 1 a 3 frases, terminando obrigatoriamente com uma pergunta. Responde primeiro ao SIGNIFICADO do que o aluno disse."
+            },
+            "reply_pt": {
+              "type": "string",
+              "description": "Traducao curta em portugues da fala acima. Serve de apoio sob demanda, nao substitui o ingles."
+            },
+            "instruction_pt": {
+              "type": "string",
+              "description": "Uma frase em portugues dizendo ao aluno exatamente o que fazer agora. Nunca vazia."
+            },
+            "corrections": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "No maximo 3 correcoes de alto valor, e so quando melhorarem a comunicacao. Array vazio quando nao ha o que corrigir — o caso mais comum.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "original",
+                  "suggested",
+                  "explanation_pt",
+                  "category"
+                ],
+                "properties": {
+                  "original": {
+                    "type": "string",
+                    "description": "Trecho LITERAL da fala do aluno que esta sendo corrigido. Copie as palavras exatas, sem parafrasear e sem reescrever. E a evidencia da correcao: sem ela a correcao e invalida."
+                  },
+                  "suggested": {
+                    "type": "string",
+                    "description": "A forma natural em ingles que substitui o trecho acima."
+                  },
+                  "explanation_pt": {
+                    "type": "string",
+                    "description": "Explicacao curta em portugues, uma frase, dizendo por que a forma sugerida e melhor."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "grammar",
+                      "vocabulary",
+                      "word_order",
+                      "preposition",
+                      "false_friend",
+                      "register"
+                    ],
+                    "description": "Tipo da correcao. Permite priorizar o que quebra a comunicacao sobre o que e so questao de registro."
+                  }
+                }
+              }
+            },
+            "suggestion_en": {
+              "type": "string",
+              "description": "Resposta modelo curta em ingles que o aluno poderia dizer agora, no nivel dele."
+            },
+            "suggestion_pt": {
+              "type": "string",
+              "description": "Traducao em portugues da sugestao acima."
+            },
+            "words": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Ate 3 expressoes em ingles praticadas neste turno. Array vazio se nao houver."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Um ponto de melhoria curto em portugues, que alimenta os pontos recentes do aluno. String vazia se nao houver."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "reply",
+                "retry",
+                "continue_mission",
+                "complete_mission"
+              ],
+              "description": "O que deveria acontecer em seguida. 'reply': o aluno responde a sua pergunta. 'retry': o aluno repete a propria fala com a correcao aplicada. 'continue_mission': a etapa atual fechou e a missao segue. 'complete_mission': o objetivo da missao foi cumprido. Voce PROPOE; quem decide e o motor pedagogico."
+            }
+          }
+        },
+        "strict": true
+      }
+    }
+  },
+  "resposta": {
+    "id": "chatcmpl-fbf03db2-09cc-47a5-b56f-8fcc8294d456",
+    "object": "chat.completion",
+    "created": 1789605019,
+    "model": "openai/gpt-oss-20b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"reply_en\":\"Great to hear that you're in Brazil! I can help with your check‑in. May I have your name and reservation number, please?\",\"reply_pt\":\"Que bom que está no Brasil! Posso ajudar com o check‑in. Posso ter seu nome e número de reserva, por favor?\",\"instruction_pt\":\"Por favor, me diga seu nome e número de reserva.\",\"next_action\":\"reply\",\"corrections\":[{\"original\":\"Actually I am living in Brazil since 2019\",\"suggested\":\"I have been living in Brazil since 2019\",\"explanation_pt\":\"Para indicar que algo começou no passado e continua no presente, usamos 'have been living', não 'am living'.\",\"category\":\"grammar\"}],\"suggestion_en\":\"My name is John Smith and my reservation number is 12345.\",\"suggestion_pt\":\"Meu nome é John Smith e meu número de reserva é 12345.\",\"words\":[\"living\",\"since\",\"Brazil\"],\"focus\":\"Uso do presente perfeito contínuo\"}",
+          "reasoning": "We need to respond as Emma, the receptionist at hotel check-in. The user says \"Actually I am living in Brazil since 2019\". So the context: student says: \"Actually I am living in Brazil since 2019\". We need to respond to that, check in. We need to first respond to the meaning: they are living in Brazil since 2019. Then we ask about check-in. We can provide corrections.\n\nWe need to detect errors:\n\n- The sentence \"Actually I am living in Brazil since 2019\" is a bit off. Should be \"I have been living in Brazil since 2019\" or \"I have lived in Brazil since 2019\". So correction: grammar (verb form). Also \"Actually\" is optional; not needed maybe. But it's not a big mistake. The main issue: present continuous used with a period time; we need present perfect continuous. So correction: grammar.\n\nAlso \"I am living\" vs \"I have been living\" is the error.\n\nAdditionally maybe \"since\" used incorrectly? Actually \"since 2019\" is fine. So we correct \"I am living\" to \"I have been living\" or \"I have lived\".\n\nAlso \"Brazil\" capitalization: fine.\n\nWe also need to consider false friends? No.\n\nThus we have one correction: \"I am living in Brazil since 2019\" -> \"I have been living in Brazil since 2019\". Category: grammar.\n\nWe also have suggestion_en: \"I have been living in Brazil since 2019.\"\n\nWe also need to reply in English, 1-3 sentences, ending with a question. We need to ask about check-in.\n\nWe also need to set the instruction_pt: \"Por favor, continue e diga seu nome e número de reserva.\" Or \"Por favor, me diga seu nome e número de reserva\" etc. But instruction_pt should be something like \"Por favor, me diga seu nome e número de reserva.\" Since we want the next action to be reply.\n\nWe also need focus: a point of improvement: maybe \"uso do presente perfeito\" or \"uso de 'since'\". Focus string: \"Uso do presente perfeito contínuo\".\n\nWe need suggestion_en: short model reply: \"My name is [Name] and my reservation number is [Number].\" But we need a generic example: \"My name is John Smith and my reservation number is 12345.\" In Portuguese: \"Meu nome é John Smith e meu número de reserva é 12345.\"\n\nAlso words: maybe \"living\", \"since\", \"Brazil\". Up to 3. Provide them.\n\nWe need to fill all fields in JSON.\n\nLet's produce:\n\nreply_en: \"Great to hear that you're in Brazil! I can help with your check‑in. May I have your name and reservation number, please?\"\n\nreply_pt: \"Que bom que está no Brasil! Posso ajudar com o check‑in. Posso ter seu nome e número de reserva, por favor?\"\n\ninstruction_pt: \"Por favor, me diga seu nome e número de reserva.\"\n\nnext_action: \"reply\"\n\ncorrections: one item:\n\noriginal: \"Actually I am living in Brazil since 2019\"\n\nsuggested: \"I have been living in Brazil since 2019\"\n\nexplanation_pt: \"Para indicar que algo começou no passado e continua no presente, usamos 'have been living', não 'am living'.\"\n\ncategory: \"grammar\"\n\nsuggestion_en: \"My name is John Smith and my reservation number is 12345.\"\n\nsuggestion_pt: \"Meu nome é John Smith e meu número de reserva é 12345.\"\n\nwords: [\"living\", \"since\", \"Brazil\"]\n\nfocus: \"Uso do presente perfeito contínuo\".\n\nCheck JSON: all required fields present.\n\nOk. Let's produce final JSON."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.246355604,
+      "prompt_tokens": 1539,
+      "prompt_time": 0.110715672,
+      "completion_tokens": 999,
+      "completion_time": 1.193165462,
+      "total_tokens": 2538,
+      "total_time": 1.303881134,
+      "completion_tokens_details": {
+        "reasoning_tokens": 780
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_a4315eb300",
+    "x_groq": {
+      "id": "req_01m2pcayn0ey59vfrze7nt6qvg",
+      "seed": 419367189
+    },
+    "service_tier": "on_demand"
+  }
+}

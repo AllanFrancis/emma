@@ -1047,17 +1047,80 @@ function compararPrompt() {
     console.log(`  delta: ${mudou.length ? mudou.join(" · ") : "nenhuma checagem mudou"}`);
   }
 
-  const melhorou = linhas.filter((l) =>
-    ["C4", "C5", "C13"].some((k) => l.r4[k] === false && l.r5[k] === true),
-  ).length;
-  const piorou = linhas.filter((l) =>
-    ["C4", "C5", "C13"].some((k) => l.r4[k] === true && l.r5[k] === false),
-  ).length;
+  // Veredito por fala, olhando as checagens que medem PEDAGOGIA (nao forma).
+  const CHAVES_PEDAGOGICAS = ["C4", "C5", "C13"];
+  const vereditoDe = (l) => {
+    const up = CHAVES_PEDAGOGICAS.filter((k) => l.r4[k] === false && l.r5[k] === true);
+    const down = CHAVES_PEDAGOGICAS.filter((k) => l.r4[k] === true && l.r5[k] === false);
+    if (up.length && down.length) return { rotulo: "TROCA", detalhe: `+${up} / -${down}` };
+    if (up.length) return { rotulo: "MELHORA", detalhe: `+${up}` };
+    if (down.length) return { rotulo: "REGRESSAO", detalhe: `-${down}` };
+    return { rotulo: "equivalencia", detalhe: "" };
+  };
+
+  // Confianca vem de CORROBORACAO, nao de tamanho de efeito. Sem seed e sem temperature
+  // fixada, um par v4/v5 e n=1 por versao: qualquer diferenca isolada pode ser amostragem.
+  // Se a fala tambem esta na matriz, as celulas dizem se o comportamento se repete.
+  const matrizPorFala = carregarCelulasSeExistir();
+  const confiancaDe = (id) => {
+    const celulas = matrizPorFala.get(id);
+    if (!celulas || celulas.length === 0) {
+      return "BAIXA — n=1 por versao, sem seed/temperature e sem corroboracao na matriz";
+    }
+    const corrigiram = celulas.filter((c) => countCorrections(c.turn) > 0).length;
+    const consistente = corrigiram === 0 || corrigiram === celulas.length;
+    return `${consistente ? "MEDIA" : "BAIXA"} — n=1 por versao; matriz: ${corrigiram}/${celulas.length} celulas corrigiram${consistente ? " (comportamento consistente)" : " (comportamento misto = assinatura de amostragem)"}`;
+  };
+
   console.log(
-    `\ncomparar-prompt: ${linhas.length} falas · ${melhorou} melhoraram · ${piorou} pioraram · ${ausentes} sem evidencia`,
+    `\n${"=".repeat(78)}\nTABELA FINAL — v4 x v5 em condicao identica (nivel do dataset, tom tranquila)\n`,
+  );
+  for (const l of linhas) {
+    const c4 = (r) => (r.C4 === null ? "n/a" : r.C4 ? "passa" : "FALHA");
+    const c5 = (r) => (r.C5 === null ? "n/a" : r.C5 ? "passa" : "FALHA");
+    const n4 = (l.t4.corrections ?? []).length;
+    const n5 = (l.t5.corrections ?? []).length;
+    const v = vereditoDe(l);
+    const sug4 = (l.t4.corrections ?? []).map((x) => x.suggested);
+    const sug5 = (l.t5.corrections ?? []).map((x) => x.suggested);
+    const mesmaCorrecao =
+      n4 === n5 && sug4.every((s, i) => s.toLowerCase() === (sug5[i] ?? "").toLowerCase());
+
+    console.log(`[${l.alvo.id}] ${l.base.tipo_erro} · falha no v4: ${l.alvo.falha_v4}`);
+    console.log(`  aluno: "${l.base.aluno}"`);
+    console.log(`  correcoes emitidas ....... v4=${n4}  v5=${n5}`);
+    console.log(`  next_action .............. v4=${l.t4.next_action}  v5=${l.t5.next_action}`);
+    console.log(`  C4 (nao corrige controle)  v4=${c4(l.r4)}  v5=${c4(l.r5)}`);
+    console.log(`  C5 (corrige quando ha) ... v4=${c5(l.r4)}  v5=${c5(l.r5)}`);
+    console.log(
+      `  C13 (explicacao em pt) ... v4=${l.r4.C13 === null ? "n/a" : l.r4.C13 ? "passa" : "FALHA"}  v5=${l.r5.C13 === null ? "n/a" : l.r5.C13 ? "passa" : "FALHA"}`,
+    );
+    console.log(
+      `  diferenca pedagogica ..... ${n4 !== n5 ? `QUANTIDADE mudou (${n4} -> ${n5})` : mesmaCorrecao ? "nenhuma (mesma correcao)" : "MESMO numero, correcao diferente"}`,
+    );
+    console.log(`  veredito ................. ${v.rotulo}${v.detalhe ? ` (${v.detalhe})` : ""}`);
+    console.log(`  confianca ................ ${confiancaDe(l.alvo.id)}`);
+    console.log("");
+  }
+
+  const cont = { MELHORA: 0, REGRESSAO: 0, TROCA: 0, equivalencia: 0 };
+  for (const l of linhas) cont[vereditoDe(l).rotulo] += 1;
+  console.log(
+    `comparar-prompt: ${linhas.length}/${matriz.comparacao.falas.length} falas · ${cont.MELHORA} melhora · ${cont.REGRESSAO} regressao · ${cont.TROCA} troca · ${cont.equivalencia} equivalencia · ${ausentes} sem evidencia`,
   );
   console.log("O VEREDITO E HUMANO: estes numeros dizem o que mudou, nao se a mudanca vale.");
-  process.exit(ausentes > 0 ? 1 : 0);
+  process.exit(ausentes > 0 || linhas.length !== matriz.comparacao.falas.length ? 1 : 0);
+}
+
+// Versao tolerante de carregarCelulas: a comparacao de prompt nao DEPENDE da matriz, mas
+// usa as celulas como corroboracao quando existem. Falhar aqui por matriz ausente seria
+// acoplar dois desenhos que sao independentes.
+function carregarCelulasSeExistir() {
+  try {
+    return carregarCelulas();
+  } catch {
+    return new Map();
+  }
 }
 
 const argv = process.argv;

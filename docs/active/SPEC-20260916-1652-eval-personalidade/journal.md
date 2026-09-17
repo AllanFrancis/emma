@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-16 18:14
+**Última atualização:** 2026-09-16 20:33
 **Onde tô:** fases 1 a 4 concluídas (matriz declarada, prompt v5, runner e comparador). Rodada da matriz em andamento; 2 de 8 critérios com `verify:` estampados.
 **Próximo passo:** aguardar as 48 células + 7 da comparação, depois `verify` e apresentar a leitura humana.
 **Última decisão:** asserção de matriz exige matriz COMPLETA — passe sobre dado parcial transforma "não medi" em "está certo".
@@ -245,3 +245,67 @@ AÇÕES EXECUTADAS junto com esta correção:
   self-test guardam isso. Resultado: matriz 48/48 passa, comparação com 2 de 7 reprova nomeando
   "desenho incompleto".
 ⎿ commit 66a12df+dirty · 1 file changed, 68 insertions(+), 8 deletions(-)
+
+## 2026-09-16 20:33 — [descoberta] Comparacao controlada 7/7: 5 melhora, 0 regressao, 2 equivalencia; C4 melhorou (v5 nao sobre-corrigiu o controle); primeira json_validate_failed do 20b, recuperada por retry
+
+Comparação controlada 7/7 fechada. Condição idêntica ao v4 em todas: nível do dataset, tom
+tranquila, mesmo modelo, mesmo dataset. Só o prompt muda.
+
+RESULTADO: 5 melhora · 0 regressão · 0 troca · 2 equivalência.
+
+| fala | corr. v4→v5 | next_action v4→v5 | C4 | C5 | C13 | veredito | confiança |
+|---|---|---|---|---|---|---|---|
+| cafe-02 | 0→0 | reply→reply | n/a | FALHA→FALHA | n/a | equivalência | BAIXA |
+| cafe-08 | 0→1 | reply→reply | n/a | FALHA→passa | n/a→passa | MELHORA +C5 | BAIXA |
+| talk-06 | 0→1 | reply→**retry** | n/a | FALHA→passa | n/a→passa | MELHORA +C5 | BAIXA |
+| talk-10 | 0→0 | reply→reply | n/a | FALHA→FALHA | n/a | equivalência | BAIXA |
+| hotel-05 | 1→1 | retry→retry | n/a | passa→passa | FALHA→passa | MELHORA +C13 | MÉDIA |
+| hotel-07 | 1→**0** | reply→reply | **FALHA→passa** | n/a | FALHA→n/a | MELHORA +C4 | MÉDIA (frágil) |
+| hotel-10 | 1→1 | **retry→reply** | n/a | passa→passa | FALHA→passa | MELHORA +C13 | BAIXA |
+
+C4 — RESPOSTA DIRETA À PERGUNTA DO USUÁRIO: o v5 NÃO aumentou correção indevida em caso de
+controle. Só 1 das 7 falas é controle (`hotel-07`), o v4 sobre-corrigia e o v5 NÃO corrigiu. Na
+comparação controlada, C4 melhorou.
+
+RESSALVA HONESTA sobre `hotel-07`: a matriz contradiz esse resultado. Nas 4 células da matriz
+(níveis 1 e 4, ambos os tons) o modelo sobre-corrigiu em 4/4; na comparação controlada (nível 3,
+tranquila) não corrigiu. A discordância entre os dois desenhos é ela mesma evidência de variância
+de amostragem, e torna o veredito "MELHORA +C4" de `hotel-07` FRÁGIL, apesar do rótulo MÉDIA que a
+função de confiança atribui por consistência da matriz.
+
+C5: das 4 omissões do v4, o v5 consertou 2 (`cafe-08` "some"→"any", `talk-06` "no?"→"isn't it?") e
+manteve 2 (`cafe-02`, `talk-10`). Nas duas que persistem, a forma correta continua indo para
+`suggestion_en` — exatamente o padrão que a regra de precedência do v5 pretendia eliminar. Ou seja:
+a regra funcionou em metade dos casos.
+
+C13: das 3 explicações em inglês do v4, o v5 corrigiu 2 de forma verificável (`hotel-05`:
+"Use 'am' instead of 'have' for age." → "Você esqueceu de usar 'am' e 'old' para indicar sua
+idade."; `hotel-10`: "Use present perfect continuous..." → "Para indicar que algo começou no
+passado e continua no presente, usamos 'have been living'..."). A terceira (`hotel-07`) virou n/a
+porque o v5 não emitiu correção nenhuma.
+
+PIORA NÃO CAPTURADA POR NENHUMA CHECAGEM: `hotel-10` mudou `next_action` de `retry` para `reply`
+mantendo a correção emitida. Pedir ao aluno que aplique a correção é pedagogicamente melhor que
+seguir adiante, e nenhuma das 13 checagens mede isso — C12 só olha casos de controle. Fica
+registrado como lacuna de medição, não como regressão confirmada.
+
+PRIMEIRA `json_validate_failed` DO 20b. Aconteceu em `talk-06`, na primeira tentativa, com DUAS
+causas na mesma resposta: (1) JSON malformado — o modelo não fechou a string de `focus` e escreveu
+`...em vez de 'no?','next_action":"reply"`, com aspa simples onde devia ser dupla; (2) `words` com
+4 itens, violando `maxItems: 3`. A SPEC-20260916-1450 registrou 2 dessas no 120b e ZERO no 20b em
+45 chamadas. Agora: 1 em ~57 chamadas do v5 (48 matriz + 7 comparação + 2 anteriores). Não é
+distinguível estatisticamente de 0 em 45, mas confirma o gotcha "strict: true não garante resposta
+utilizável" e reforça a DEC-20260916-0311. Retentar resolveu.
+
+CONSEQUÊNCIA NO GATE, e é decisão do usuário: `--assert-contract` classifica essa falha como falha
+de CONTRATO (corretamente — não é rate limit) e por isso o critério 7 REPROVA, mesmo com os 7
+turnos gravados todos válidos. A questão em aberto: uma `json_validate_failed` que foi RECUPERADA
+por retry, e cuja fala tem evidência bem-sucedida, deve reprovar o desenho? Pela DEC-20260916-0311
+isso é a decisão FUNCIONANDO, não o contrato quebrado. Não alterei o gate por conta própria —
+mudar classificação depois de ver o gate reprovar é exatamente o padrão que produz confiança falsa.
+
+LIMITE METODOLÓGICO que vale para toda a tabela: nenhuma rodada fixa `seed` nem `temperature`. Cada
+célula da tabela é n=1 por versão. A coluna de confiança reflete apenas CORROBORAÇÃO pela matriz,
+não tamanho de efeito. Nenhuma linha isolada sustenta causalidade; o conjunto (5 melhoras, 0
+regressões) sustenta a direção.
+⎿ commit 7a6e05a+dirty · 1 file changed, 71 insertions(+), 8 deletions(-)
