@@ -1,16 +1,16 @@
 # SPEC-20260916-2048: Regra da fala transcrita — impedir correção de grafia por construção
 
-**Status:** draft
+**Status:** active
 **Porte:** P
 **Owner:** @allan
 **Criada:** 2026-09-16 20:48
-**Ativada:** —
+**Ativada:** 2026-09-16 23:23
 **Concluída:** —
 **Pausada em:** —
 **Commit final:** —
 **Keywords:** fala-transcrita, maiuscula, grafia, livre-02, DEC-0312
 **Features:** dialogo
-**Branch:** —
+**Branch:** feature/regra-fala-transcrita
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 20:43 — "violação da regra de não corrigir maiúscula/pontuação/grafia observada em `livre-02`"

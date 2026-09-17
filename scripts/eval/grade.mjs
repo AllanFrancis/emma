@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateTurn, validateEvidence } from "./turn-validator.mjs";
+import { validateTurn, validateEvidence, isSurfaceOnlyCorrection } from "./turn-validator.mjs";
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(CURRENT_DIR, "..", "..");
@@ -130,6 +130,15 @@ const CHECKS = [
       countCorrections(turn) === 0 || !Array.isArray(turn.corrections)
         ? null
         : turn.corrections.every((c) => isPortuguese(c?.explanation_pt ?? "")),
+  },
+  {
+    id: "C14",
+    name: "nao corrige grafia de fala transcrita",
+    criterion: "caixa, pontuacao e acento nao existem na fala — DEC-20260916-0312",
+    check: (turn) =>
+      countCorrections(turn) === 0 || !Array.isArray(turn.corrections)
+        ? null
+        : turn.corrections.every((c) => !isSurfaceOnlyCorrection(c)),
   },
 ];
 
@@ -517,6 +526,78 @@ function buildSelfTestCases() {
       turn: createFixture({ corrections: [], next_action: "reply" }),
       record: controlRecord,
       expected: { C13: null },
+    },
+    // C14 (SPEC-20260916-2048-regra-fala-transcrita). Cada caso e um PAR: a violacao tem
+    // de reprovar E a correcao legitima vizinha tem de passar. Sem o par, C14 vira alarme
+    // de qualquer correcao curta — e o falso positivo aqui e pior que nao medir, porque
+    // silenciaria correcao de estrutura real.
+    {
+      // O caso literal de `livre-02 n1 tranquila`: o modelo corrigiu "english" para
+      // "English" com next_action retry, pedindo repeticao por causa de caixa.
+      name: "C14 acusa correcao de caixa (english -> English)",
+      turn: createFixture({
+        corrections: [
+          createCorrection({
+            original: "english",
+            suggested: "English",
+            explanation_pt: "Use maiúscula em nomes de línguas.",
+            category: "vocabulary",
+          }),
+        ],
+      }),
+      record: errorRecord,
+      expected: { C14: false },
+    },
+    {
+      name: "C14 acusa correcao de pontuacao (lets go -> let's go)",
+      turn: createFixture({
+        corrections: [createCorrection({ original: "lets go", suggested: "let's go" })],
+      }),
+      record: errorRecord,
+      expected: { C14: false },
+    },
+    {
+      name: "C14 acusa correcao de acento (cafe -> café)",
+      turn: createFixture({
+        corrections: [createCorrection({ original: "cafe", suggested: "café" })],
+      }),
+      record: errorRecord,
+      expected: { C14: false },
+    },
+    {
+      // O falso positivo que a SPEC nomeia: a diferenca remove uma palavra, entao NAO e
+      // exclusivamente de superficie e a correcao e legitima.
+      name: "C14 silencia em mudanca de estrutura (i'm agree -> I agree)",
+      turn: createFixture({
+        corrections: [createCorrection({ original: "i'm agree", suggested: "I agree" })],
+      }),
+      record: errorRecord,
+      expected: { C14: true },
+    },
+    {
+      name: "C14 silencia na correcao de registro do fixture (I want -> I'd like)",
+      turn: createFixture(),
+      record: errorRecord,
+      expected: { C14: true },
+    },
+    {
+      // `every`: uma correcao de superficie contamina o turno inteiro, mesmo acompanhada
+      // de correcao legitima. Turno com as duas ainda entrega grafia ao aluno.
+      name: "C14 acusa quando ha correcao legitima E de superficie no mesmo turno",
+      turn: createFixture({
+        corrections: [
+          createCorrection(),
+          createCorrection({ original: "english", suggested: "English" }),
+        ],
+      }),
+      record: errorRecord,
+      expected: { C14: false },
+    },
+    {
+      name: "sem correcao, C14 nao se aplica",
+      turn: createFixture({ corrections: [], next_action: "reply" }),
+      record: controlRecord,
+      expected: { C14: null },
     },
   ];
 }
@@ -949,8 +1030,10 @@ function runSelfTest() {
   process.exit(failures > 0 ? 1 : 0);
 }
 
-function findEvidenceTargets() {
-  const activeDir = path.join(PROJECT_ROOT, "docs", "active");
+// A varredura e a mesma; a RAIZ e que decide o significado do resultado. Ver
+// `findEvidenceTargets` (execucao atual) e `findHistoricalEvidenceTargets` (historico).
+function collectEvidenceTargets(rootDir) {
+  const activeDir = rootDir;
   if (!fs.existsSync(activeDir)) return [];
   const targets = [];
   for (const spec of fs.readdirSync(activeDir).filter((name) => name.startsWith("SPEC-"))) {
@@ -969,13 +1052,28 @@ function findEvidenceTargets() {
       const subgrupos = entradas.filter(
         (name) => name !== "conversas" && fs.statSync(path.join(modelDir, name)).isDirectory(),
       );
-      if (temJsonSolto) targets.push({ model, modelDir });
+      if (temJsonSolto) targets.push({ spec, model, modelDir });
       for (const grupo of subgrupos) {
-        targets.push({ model: `${model}/${grupo}`, modelDir: path.join(modelDir, grupo) });
+        targets.push({ spec, model: `${model}/${grupo}`, modelDir: path.join(modelDir, grupo) });
       }
     }
   }
   return targets;
+}
+
+// Evidencia da EXECUCAO ATUAL: a SPEC ativa deste worktree. E a unica fonte da tabela da
+// rodada (`printTable`) e dos gates — comportamento inalterado.
+function findEvidenceTargets() {
+  return collectEvidenceTargets(path.join(PROJECT_ROOT, "docs", "active"));
+}
+
+// Evidencia HISTORICA: rodadas de SPECs ja arquivadas. Fonte SEPARADA de proposito
+// (SPEC-20260916-2048-regra-fala-transcrita, decisao do usuario em 2026-09-16): serve
+// APENAS a levantamento e comparacao. Nenhum gate e nenhuma tabela de rodada le daqui —
+// somar turnos de SPEC antiga na medida da execucao corrente daria uma media que nao
+// significa nada, e e exatamente o que a separacao impede.
+function findHistoricalEvidenceTargets() {
+  return collectEvidenceTargets(path.join(PROJECT_ROOT, "docs", "archive"));
 }
 
 function extractTurn(rawEvidence) {
@@ -1799,8 +1897,106 @@ function relatorioConversas() {
   process.exit(incompletas > 0 ? 1 : 0);
 }
 
+// Levantamento da SPEC-20260916-2048-regra-fala-transcrita: a taxa real de correcao de
+// grafia nas evidencias JA GRAVADAS, sem uma unica chamada nova ao modelo. Le as duas
+// fontes e as reporta SEPARADAS — a atual mede a rodada em curso, a historica mede o
+// passado; a soma das duas nao e uma taxa, e uma mistura.
+function levantamentoSuperficie() {
+  const fontes = [
+    { rotulo: "execucao atual (docs/active/)", targets: findEvidenceTargets() },
+    { rotulo: "historico (docs/archive/)", targets: findHistoricalEvidenceTargets() },
+  ];
+
+  let algumaEvidencia = false;
+
+  for (const fonte of fontes) {
+    console.log(`\n${"=".repeat(78)}`);
+    console.log(fonte.rotulo);
+    console.log("=".repeat(78));
+    if (fonte.targets.length === 0) {
+      console.log("  nenhuma evidencia nesta fonte.");
+      continue;
+    }
+
+    let turnos = 0;
+    let turnosComCorrecao = 0;
+    let turnosViolando = 0;
+    let correcoes = 0;
+    let correcoesSuperficie = 0;
+    let violandoComRetry = 0;
+    const casos = [];
+
+    for (const target of fonte.targets) {
+      const files = fs.readdirSync(target.modelDir).filter((name) => name.endsWith(".json"));
+      for (const file of files) {
+        const raw = JSON.parse(fs.readFileSync(path.join(target.modelDir, file), "utf8"));
+        const turn = extractTurn(raw);
+        if (!turn) continue;
+        turnos += 1;
+        const lista = Array.isArray(turn.corrections) ? turn.corrections : [];
+        if (lista.length === 0) continue;
+        turnosComCorrecao += 1;
+        correcoes += lista.length;
+        const suspeitas = lista.filter((c) => isSurfaceOnlyCorrection(c));
+        if (suspeitas.length === 0) continue;
+        correcoesSuperficie += suspeitas.length;
+        turnosViolando += 1;
+        if (turn.next_action === "retry") violandoComRetry += 1;
+        for (const c of suspeitas) {
+          casos.push({
+            spec: target.spec,
+            model: target.model,
+            file,
+            original: c?.original,
+            suggested: c?.suggested,
+            category: c?.category,
+            explanation_pt: c?.explanation_pt,
+            next_action: turn.next_action,
+          });
+        }
+      }
+    }
+
+    algumaEvidencia = algumaEvidencia || turnos > 0;
+
+    const pct = (parte, todo) => (todo === 0 ? "—" : `${((parte / todo) * 100).toFixed(1)}%`);
+    console.log(`  alvos              : ${fonte.targets.length}`);
+    console.log(`  turnos lidos       : ${turnos}`);
+    console.log(`  turnos com correcao: ${turnosComCorrecao}`);
+    console.log(`  correcoes emitidas : ${correcoes}`);
+    console.log(
+      `  correcoes de grafia: ${correcoesSuperficie} (${pct(correcoesSuperficie, correcoes)} das correcoes)`,
+    );
+    console.log(
+      `  turnos violando    : ${turnosViolando} (${pct(turnosViolando, turnosComCorrecao)} dos turnos com correcao)`,
+    );
+    console.log(`  destes, com retry  : ${violandoComRetry}  <- o pior caso da invariante`);
+
+    if (casos.length > 0) {
+      console.log("\n  casos (leitura humana obrigatoria antes de virar gate):");
+      for (const c of casos) {
+        console.log(`  - ${c.spec} · ${c.model} · ${c.file}`);
+        console.log(
+          `      "${c.original}" -> "${c.suggested}"  (${c.category}, next_action: ${c.next_action})`,
+        );
+        console.log(`      ${c.explanation_pt}`);
+      }
+    }
+  }
+
+  console.log(
+    "\nnota: `conversas/` nao entra aqui — uma conversa e um arquivo com varios turnos e tem",
+  );
+  console.log("caminho proprio (--conversas). Este levantamento cobre as rodadas por turno.");
+  if (!algumaEvidencia) {
+    console.log("\nnenhuma evidencia legivel em nenhuma das duas fontes.");
+    process.exit(1);
+  }
+}
+
 const argv = process.argv;
-if (argv.includes("--conversas")) relatorioConversas();
+if (argv.includes("--levantamento-superficie")) levantamentoSuperficie();
+else if (argv.includes("--conversas")) relatorioConversas();
 else if (argv.includes("--self-test")) runSelfTest();
 else if (argv.includes("--matriz")) {
   if (argv.includes("--assert-completo")) assertCompleto();
