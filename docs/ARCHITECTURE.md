@@ -15,6 +15,8 @@
 | scripts/eval/validate.mjs | dialogo | Validação estrutural offline do dataset e do schema |
 | scripts/eval/dataset.jsonl | avaliacao | 45 falas de referência, 17 delas controles para medir sobre-correção |
 | scripts/eval/rubric.md | avaliacao | Rubrica de nível N1–N5 × 5 critérios, com evidência obrigatória |
+| src/domain/ | pedagogia | Núcleo pedagógico em TypeScript puro: `decidirIntent`, `revisarTurno`, `decidirNextAction` e as políticas de nível, suporte, correção e missão. Sem rede, sem provedor. Superfície pública em `index.ts` |
+| src/domain/turn-contract.generated.ts | dialogo | GERADO de `scripts/eval/turn-schema.json` — fonte única do contrato do turno |
 | src/routes/ | (sem feature) | Scaffold TanStack Start — `index.tsx` é a tela de boas-vindas do template |
 | src/components/ui/ | (sem feature) | 46 componentes shadcn/ui (new-york) intocados; base de composição das telas futuras |
 | src/lib/, src/hooks/ | (sem feature) | Utilitários do scaffold (`cn`, captura de erro, `use-mobile`) |
@@ -30,7 +32,12 @@
 - **Turno de conversa (planejado, Fase 1):** perfil + sessão → **pedagogia** (`PedagogicalIntent`) → **dialogo** (server function, strict JSON, fallback roteirizado) → **personalidade** (estilo pós-LLM, campos protegidos) → canal texto. Voz (Fase 3) entra e sai pelas pontas, com o mesmo núcleo no meio.
 - **Onde vive a decisão:** política pedagógica em **pedagogia** (TypeScript, sem rede); formulação de linguagem no LLM via **dialogo**; tom em **personalidade**. Regra pedagógica em componente de interface ou em texto de prompt é violação da §11 do prompt de desenvolvimento.
 
-## Fronteira ainda não existente
+## Fronteira já existente, e a que falta
 
-O produto não tem código: `src/` é scaffold puro. Todo código de produto da Fase 1 nasce das SPECs
-do programa `emma` — ver `docs/PROGRAMS.md` para a ordem e `specctl next` para o que já é pegável.
+`src/` **não é mais scaffold puro**: `src/domain/` é o núcleo pedagógico, entregue pela
+SPEC-20260916-1652-nucleo-pedagogico. Ele responde "o que ensinar agora" e é a fronteira que o
+motor de diálogo consome — quem integra importa de `src/domain/index.ts` e de nenhum arquivo interno.
+
+O que ainda não existe: a camada que fala com o LLM (server function e adapter), as telas, e o
+catálogo de missões como dado. Nasce das SPECs do programa `emma` — ver `docs/PROGRAMS.md` para a
+ordem e `specctl next` para o que já é pegável.
