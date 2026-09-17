@@ -1,16 +1,16 @@
 # SPEC-20260916-1652: Onboarding e perfil pedagógico
 
-**Status:** draft
+**Status:** active
 **Porte:** M
 **Owner:** @allan
 **Criada:** 2026-09-16 16:52
-**Ativada:** —
+**Ativada:** 2026-09-17 12:07
 **Concluída:** —
 **Pausada em:** —
 **Commit final:** —
 **Keywords:** onboarding, perfil, telas, uma-decisao, progresso
 **Features:** onboarding
-**Branch:** —
+**Branch:** feature/onboarding-e-perfil
 **Programa:** emma
 **Workspace:** —
 **Origem:** usuário em 2026-09-16 16:52
