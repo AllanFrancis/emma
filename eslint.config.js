@@ -9,7 +9,20 @@ export default tseslint.config(
   // `.scratch` e `.tanstack` guardam artefato descartavel e gerado — inclusive bundles
   // de terceiros com megabytes de JS minificado. O eslint nao le o .gitignore sozinho, e
   // sem estas entradas o `eslint .` tenta formatar esses arquivos e trava a rodada.
-  { ignores: ["dist", ".output", ".vinxi", ".scratch", ".tanstack", "src/routeTree.gen.ts"] },
+  // `turn-contract.generated.ts` entra na mesma lista dos gerados: o `--check` do gerador
+  // compara byte a byte com a saida dele, e o prettier reformatando o arquivo faria o teste
+  // de dual-write reprovar por formatacao em vez de por divergencia de contrato.
+  {
+    ignores: [
+      "dist",
+      ".output",
+      ".vinxi",
+      ".scratch",
+      ".tanstack",
+      "src/routeTree.gen.ts",
+      "src/domain/turn-contract.generated.ts",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
