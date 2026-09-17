@@ -14,6 +14,7 @@
 **Programa:** emma
 **Workspace:** inline
 **Origem:** usuário em 2026-09-16 16:52
+**Tasks:** `tasks.md` (pipeline só tasks, execução autônoma — decidido em 2026-09-17)
 **Resumo:** Transforma `PedagogicalIntent` em turno de conversa por server function no Groq, com schema estrito, retry e fallback roteirizado — e a chave de API nunca no cliente.
 
 ## Objetivo

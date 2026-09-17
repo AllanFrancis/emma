@@ -2,7 +2,7 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 12:43
+**Última atualização:** 2026-09-17 13:10
 **Onde tô:** início — nada feito ainda
 **Próximo passo:** <primeiro passo concreto>
 **Última decisão:** —
@@ -96,3 +96,44 @@ Operacionalmente: a janela de histórico aqui é **orçamento em tokens**, medid
 
 Nota de contexto útil para a decomposição: a `semantica-next-action` fechou hoje, em paralelo, decidindo que **o núcleo é fonte de verdade de `next_action`** e o modelo apenas propõe. Isso confirma a invariante já contratada aqui — "NUNCA o motor toma decisão pedagógica" — e reforça que o motor não deve corrigir nem sobrescrever `next_action`: ele entrega o turno validado, e a política é de outra camada.
 ⎿ commit f374a9f+dirty · 1 file changed, 1 insertion(+), 1 deletion(-)
+
+## 2026-09-17 13:10 — [nota] tasks.md escrito partindo do nucleo que JA existe em src/domain — integracao, nao recriacao
+
+Lista de tasks escrita em `tasks.md`, no workspace inline desta SPEC. Modo autônomo: a apresentação da lista é informativa, registrada aqui, e a sessão prossegue.
+
+### O planejamento mudou depois de ler o código
+
+A descoberta que reorientou a decomposição: **o núcleo pedagógico já existe em `src/domain/`**, com 16 arquivos versionados e superfície pública em `index.ts`. Isso não estava óbvio — o `ARCHITECTURE.md` afirmava que "o produto não tem código: `src/` é scaffold puro", e a SPEC do núcleo, ao arquivar, não atualizou esse mapa.
+
+Já existem e são INSUMO, não trabalho desta SPEC:
+
+- `decidirIntent(PedagogicalInput): PedagogicalIntent` — produz o Intent que o motor consome
+- `revisarTurno(entrada, propostas): TurnoRevisado` — recebe o que o modelo propôs e devolve o que sai
+- `decidirNextAction(...)` — decisão final de `next_action`, já com precedência sobre a proposta
+- `resolverCorrecoes` / `temEvidencia` — rejeição de correção sem evidência literal e teto por prioridade
+- `Mission` / `MissionStep`, onde `openingEn` é o portador do roteiro de fallback da DEC-20260916-0311
+- `turn-contract.generated.ts`, gerado de `scripts/eval/turn-schema.json`
+
+Instrução do usuário: "não recrie `decidirIntent`, `revisarTurno` ou `decidirNextAction`. As tasks precisam partir do que já existe e focar na integração do motor com esse domínio existente." A lista foi escrita assim.
+
+### Duas descobertas que reduzem trabalho
+
+1. **CSRF já está resolvido.** `src/start.ts` instala `createCsrfMiddleware` com filtro `handlerType === "serverFn"`, e o comentário no arquivo explica que definir `src/start.ts` opta por sair do padrão, então a proteção foi re-adicionada de propósito. A task 4.4 só confirma a cobertura, em vez de implementar.
+2. **A decisão de `next_action` está pronta no núcleo.** `revisarTurno` já devolve `nextAction` decidido. O motor não escolhe — o que, de bônus, satisfaz sem trabalho extra a invariante "NUNCA o motor toma decisão pedagógica".
+
+### O que NÃO existe, e virou task
+
+Catálogo de missões como DADO (só o tipo existe) → task 3.0. Nenhum adapter de provedor, e nenhum SDK do Groq nas dependências, então o adapter fala com o endpoint compatível com OpenAI por `fetch` → task 2.0. Nenhuma server function → task 4.0.
+
+### Invariantes viraram teste, conforme decidido
+
+Task 6.0 traduz "verificar por testes/inspeção, não por gate humano" em duas checagens mecânicas: uma que inspeciona o build e falha se a chave ou o nome da variável de ambiente aparecerem em artefato do cliente, e uma que falha se qualquer arquivo de `src/domain/` importar rede ou adapter.
+
+### Fronteira com a retencao-de-contexto, reafirmada na task 7.0
+
+A janela de histórico aqui é ORÇAMENTO em tokens, medido e não estimado. O que ela não faz está escrito na própria task: nada de heurística de "dado já fornecido", deduplicação de pergunta, ou sumarização que decida o que preservar. Isso é política de retenção e pertence à SPEC-20260916-2257.
+
+### ARCHITECTURE.md corrigido no mínimo necessário
+
+Instrução do usuário: "Atualize apenas o necessário para que ele deixe de afirmar incorretamente que `src/` é apenas scaffold." Feito em três pontos: duas linhas novas no mapa região→feature (`src/domain/` como `pedagogia`, e `turn-contract.generated.ts` como `dialogo`), e a seção "Fronteira ainda não existente" virou "Fronteira já existente, e a que falta", dizendo o que existe e o que ainda não. Nenhuma outra linha tocada — sem refatoração documental ampla.
+⎿ commit df0a586+dirty · 1 file changed, 10 insertions(+), 3 deletions(-)
