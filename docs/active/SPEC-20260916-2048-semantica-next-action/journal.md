@@ -2,33 +2,53 @@
 
 ## SNAPSHOT (sobrescrever — DEVE caber nas primeiras 60 linhas do arquivo)
 
-**Última atualização:** 2026-09-17 12:40
-**Onde tô:** início — nada feito ainda
-**Próximo passo:** <primeiro passo concreto>
-**Última decisão:** —
+**Última atualização:** 2026-09-17 12:43
+**Onde tô:** os 4 critérios evidenciados; pronto para fechar
+**Próximo passo:** `close` (decisão humana) e merge de `feature/semantica-next-action`
+**Última decisão:** `next_action` tem fonte de verdade no núcleo; C15 sem exceção
 **Bloqueio atual:** nenhum
-**Se retomar, ler:** main.md desta SPEC
+**Se retomar, ler:** `tabela-de-coerencia.md` e `evidence/levantamento-taxa.md`
 
 ### Fases
 | # | Descrição | Status | Atualizado |
 |---|---|---|---|
-| 1 | <fase> | pendente | 2026-09-17 12:07 |
+| 1 | Medir a taxa nas evidências já gravadas, offline | concluída | 2026-09-17 12:22 |
+| 2 | Tabela de coerência, com revisão humana | concluída | 2026-09-17 12:40 |
+| 3 | C15 em CHECKS + self-test + `--levantamento-aplicacao` | concluída | 2026-09-17 12:41 |
 
 ### Fatos confirmados / Inferências prováveis / Dúvidas em aberto
 <!-- anti-alucinação por estrutura: separe o que é SABIDO (verificado no código/teste) do que é CHUTE (inferido) do que está EM ABERTO. Nunca trate inferência como fato. -->
-- fato:
-- inferência:
-- dúvida:
+- fato: 38 de 61 turnos com correção (62,3%) não pediam aplicação, todos `reply`. Reproduzível por `grade.mjs --levantamento-aplicacao`. Universo mensurável 107; 90 turnos pré-contrato-v2 ficam fora por ausência do campo.
+- fato: `hotel-10` está gravado 2×, mesma fala e mesma correção — `retry` no contrato-do-turno-v2, `reply` no prompt-v5. O prompt regrediu o caso e nada media.
+- fato: `continue_mission` nunca ocorre em 107 turnos; `complete_mission` ocorre 1× e sem correção.
+- fato: C15 no array `CHECKS`, independe de `record` (ao contrário de C12). Self-test 33 casos de turno / 15 checagens / 0 falha. `bun test` 76 pass, lint do projeto 0 erro, typecheck limpo.
+- fato: já eram 14 checagens quando o contrato desta SPEC dizia 13 — a C14 entrou pela SPEC-20260916-2048-regra-fala-transcrita, arquivada depois.
+- inferência: como C15 entra por iteração de `CHECKS`, ela deve aparecer sozinha em `--conversas` e na legenda. Não verificado nesta branch, que não tem evidência de conversa em `docs/active/`.
+- dúvida: nenhuma aberta para esta SPEC.
 
 ### Respostas-chave do usuário
+- Tabela de coerência: `continue_mission` + correção e `complete_mission` + correção são INCOERENTES. "se existe uma correção que o aluno precisa aplicar, o fluxo pedagógico deve dar oportunidade de aplicação antes de avançar ou concluir a missão."
+- Exceção de correção não bloqueante: RECUSADA por ora. "Não quero abrir essa exceção implicitamente dentro da C15" — exige semântica nova e explícita no contrato do turno.
+- Fonte de verdade: "Escolho núcleo sobrescrevendo a proposta do modelo."
+- Escopo da correção de contagem: só superfícies normativas desta SPEC, "não aproveite para fazer refatorações adjacentes".
 
 ### Tentativas que falharam
+- 1ª medição leu 222 turnos e perdeu as 4 conversas EM SILÊNCIO: evidência de conversa guarda `turno.resposta` já desserializado, evidência de turno único guarda o envelope da API. Gotcha candidato.
+- `specctl log --body-file` com cabeçalho `##` no corpo: o parser lê cada `## ` como entrada nova. Uma entrada virou seis e `lint --strict` deu 5 erros. Corpos devem começar em `###`.
 
 ### Arquivos tocados
+- `scripts/eval/grade.mjs` — C15 em `CHECKS`, 7 casos de self-test, `levantamentoAplicacao()` e a flag. Nada em `LONGITUDINAL_CHECKS` nem na camada de relatório.
+- `docs/ARCHITECTURE.md` — contagem 13 → 15 (2 linhas).
+- `main.md` — contagem 13 → 14 (estado anterior a esta SPEC).
+- `tabela-de-coerencia.md`, `evidence/levantamento-taxa.md` — novos.
 
 ### Onde parei
+Pronto para `close`. Pendente por decisão humana, não por trabalho.
+
+Diferido de propósito para o `### Delta de estado` do fechamento: a linha do mapa de arquivos de `docs/features/dialogo.md` ainda diz "13 checagens" e deveria dizer 15. Não editada agora porque `dialogo.md` está em colisão de claim com `motor-de-dialogo` e `docs/rules/team.md` proíbe editar a prosa de estado concorrentemente. As outras 3 ocorrências naquele arquivo são históricas e não se tocam.
 
 ### Sessões (máx 5 linhas + 1 agregada)
+- 2026-09-17 12:07–12:42 — ativação em worktree paralelo, levantamento da taxa, tabela revisada, C15 implementada e os 4 critérios evidenciados.
 
 ## LOG (append-only — NUNCA editar entradas antigas)
 <!-- tipos: ativação descoberta decisão tentativa blocker unblock refactor nota conclusão | entrada nova: specctl log -->
@@ -191,3 +211,35 @@ O contrato dizia "13 checagens"; já eram 14 quando foi escrito, porque a C14 (g
 
 NÃO corrigido de propósito: as três ocorrências históricas em `docs/features/dialogo.md` (linhas que descrevem o que era verdade quando o contrato v2 e a SPEC longitudinal fecharam) e todas as do `docs/archive/` — editá-las falsificaria registro. E a linha do mapa de arquivos de `dialogo.md`, que descreve estado atual e deveria ir a 15, fica DIFERIDA para o `### Delta de estado` do fechamento: `dialogo.md` é o arquivo em colisão de claim com `motor-de-dialogo`, e `docs/rules/team.md` proíbe editar a prosa de estado concorrentemente.
 ⎿ commit 8c54baf+dirty · 5 files changed, 258 insertions(+), 19 deletions(-)
+
+## 2026-09-17 12:43 — [conclusão] C15 fecha a lacuna do next_action e o nucleo passa a ser fonte de verdade do campo
+
+A lacuna que o `hotel-10` expôs agora é detectável, e o campo `next_action` tem dono declarado.
+
+### O que foi entregue
+
+**C15 em `scripts/eval/grade.mjs`**, espelho de C12. C12 garantia um lado — não cobrar repetição de quem não errou; a C15 cobre o outro — quem recebeu correção precisa ser convidado a aplicá-la. Regra sem exceção: `corrections.length > 0` ⇒ só `retry` é coerente.
+
+**A taxa, medida antes da intervenção e sem uma chamada nova ao modelo:** 38 de 61 turnos com correção emitida (62,3%) não pediam aplicação, todos `reply`. Reproduzível por `node scripts/eval/grade.mjs --levantamento-aplicacao`, que lê `docs/active/` e `docs/archive/` como fontes separadas.
+
+**A tabela de coerência** das 8 combinações de `corrections` × `next_action`, revisada e aprovada, com a distinção metodológica preservada: 41 casos de `reply` são medida, as duas linhas de missão são regra derivada do invariante, e o documento não finge que têm o mesmo lastro.
+
+**A decisão de fonte de verdade:** o núcleo sobrescreve a proposta do modelo. O que a sustenta não é só a taxa alta — é o `hotel-10` estar gravado duas vezes, `retry` no contrato-do-turno-v2 e `reply` no prompt-v5. O prompt regrediu o caso e ninguém notou, porque nada media. Instrução de prompt era exatamente a hipótese barata, e a evidência a reprovou antes de ela ser tentada de novo.
+
+### O que esta SPEC deliberadamente NÃO fez
+
+Não implementou a regra no núcleo pedagógico — o escopo do contrato é explícito: aqui se define a regra que ele vai aplicar. Não tocou `LONGITUDINAL_CHECKS` (território de `retencao-de-contexto`) nem a camada de relatório (território de `metodologia-de-repeticao`), mesmo estando no mesmo arquivo. Não abriu exceção para correção não bloqueante, que fica como semântica nova a propor no contrato do turno se e quando se quiser.
+
+### Gotchas que valem promoção
+
+1. **Dois formatos de evidência.** Turno único guarda a resposta como envelope da API (`choices[0].message.content` como string JSON); conversa guarda `turno.resposta` já desserializado. Varredura que trata só o primeiro formato zera as conversas SEM ERRO NENHUM — a primeira medição desta SPEC leu 222 turnos e perdeu 10 assim.
+2. **`specctl log --body-file` e cabeçalhos.** Corpo com `## ` faz o parser do LOG ler cada cabeçalho como entrada nova. Corpos devem começar em `###`.
+
+### Ficou pendente, por regra e não por esquecimento
+
+A linha do mapa de arquivos de `docs/features/dialogo.md` ainda diz "13 checagens" e deveria dizer 15. Vai no `### Delta de estado` do fechamento: `dialogo.md` está em colisão de claim com `motor-de-dialogo` nesta rodada, e `docs/rules/team.md` proíbe edição concorrente da prosa de estado. As outras três ocorrências de "13" naquele arquivo são históricas — descrevem o que era verdade quando o contrato v2 e a SPEC longitudinal fecharam — e editá-las falsificaria registro.
+
+### Verificação
+
+`grade.mjs --self-test`: 33 casos de turno, 15 checagens de turno + 5 longitudinais, 0 falha. `validate.mjs`: 0/0. `specctl lint --strict`: 0/0. `bun test`: 76 pass, 0 fail. `bun run lint`: 0 erro (6 avisos pré-existentes no scaffold `src/components/ui/`). `bun x tsc --noEmit`: limpo.
+⎿ commit 1eba10f+dirty · 2 files changed, 30 insertions(+), 9 deletions(-)

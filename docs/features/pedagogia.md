@@ -8,6 +8,7 @@
 ## Specs desta feature
 ### Concluídas
 - SPEC-20260916-1652 | 2026-09-17 | `pendente` | Núcleo pedagógico — políticas de nível, suporte, correção e missão como TypeScript puro, com `PedagogicalIntent` como saída única
+- SPEC-20260916-2048 | 2026-09-17 | `pendente` | Semântica de `next_action` — correção emitida exige aplicação; C15 espelha C12 e o núcleo passa a ser fonte de verdade do campo
 ### Planejadas (future/)
 —
 
